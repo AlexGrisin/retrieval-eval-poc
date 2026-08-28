@@ -9,7 +9,7 @@ sent to the retrieval system or agent.
 
 This template shows the fields used by routine cases. Remove optional fields that do
 not apply. The filename is the case ID, for example
-`cases/case-004-unknown-filter-rejected.yaml`.
+`cases/case-004-malformed-argument-rejected.yaml`.
 Advanced request overrides are documented separately below.
 
 ```yaml
@@ -20,41 +20,33 @@ why: >-                           # nonblank business reason for keeping this ca
 
 # Required runtime input
 query: What should the agent retrieve?  # nonblank string
-caller:
-  department: commerce           # required nonblank scope value
-  product: shop                  # optional nonblank string or null
+domain: paastry                         # required nonblank domain string
 
-# Optional runtime input; defaults are shown
-filters:
-  veracity: [verified]           # optional list: verified and/or derived
-  validity: current              # optional string; default: current
-k: 10                            # optional positive integer; default: 10
-format: full                     # optional: brief | full | citations_only; default: full
+# Optional runtime input; default is shown
+limit: 10                        # optional positive integer; default: 10
 
 # Optional retrieval expectations; include only applicable checks/labels
 expect:
   relevant:                      # nonempty graded reference set; enables ranking metrics
-    - note: n-0001               # nonblank note ID; unique within relevant
-      version: 3                 # positive integer
+    - entity: Story/PAAS-201     # nonblank entity identity "Label/key"; unique within relevant
       grade: 2                   # 0 | 1 | 2
-  must_not_return: [n-0004]      # note IDs that must be absent at every rank
-  expected_first_result: n-0001  # exact note ID required at rank 1
+  must_not_return: [Commit/github.com/paastry/svc-pricing-api@f00dfed]  # entity identities that must be absent at every rank
+  expected_first_result: Story/PAAS-201  # exact entity identity required at rank 1
 
 # Optional deliberately malformed server probe; runs only over MCP or REST
 probe_invalid_request:
-  filters:
-    unknown_filter: rejected-value
+  limit: not-a-number
 
 # Optional deterministic final-answer expectations and LLM-judge selection
 answer_evaluation:
   expect:
     status: answered              # optional: answered | insufficient_context
-    required_citations:           # optional unique exact note-version references
-      - note_id: n-0001
-        version: 3
-    must_not_cite:                # optional unique exact note-version references
-      - note_id: n-0004
-        version: 1
+    required_citations:           # optional unique exact entity references
+      - label: Story
+        key: PAAS-201
+    must_not_cite:                # optional unique exact entity references
+      - label: Commit
+        key: github.com/paastry/svc-pricing-api@f00dfed
   rubrics:                        # required nonempty unique list when section exists
     - faithfulness
     - relevancy
@@ -78,8 +70,8 @@ Use `case-NNN-observable-behavior.yaml`:
 - `NNN` is the case's position in the single contiguous sequence.
 - The description uses lowercase kebab case and names the scenario or expected
   observable outcome.
-- Prefer specific behavior such as `unknown-filter-rejected`,
-  `superseded-knowledge-excluded`, or `current-guidance-ranked-first` over a broad
+- Prefer specific behavior such as `malformed-argument-rejected`,
+  `superseded-knowledge-excluded`, or `rounding-fix-ranking` over a broad
   implementation area such as `skill`, `retrieval`, or `request-contract`.
 - Use outcome words for negative and boundary cases: `rejected`, `excluded`,
   `required`, or `ranked-first`.
@@ -95,40 +87,28 @@ describes the business risk that makes the case worth retaining.
 | --- | --- | --- | --- | --- |
 | `title` | Yes | Nonblank string | Short scenario name used by people reviewing the suite. | No |
 | `why` | Yes | Nonblank string | Business risk or regression the case exists to detect. | No |
-| `query` | Yes | Nonblank string | User question supplied to retrieval; later also supplied to the answer judge. | Yes |
-| `caller` | Yes | Mapping described below | Retrieval scope. | Yes |
-| `filters` | No | Mapping; omitted means default filters | Retrieval constraints. Only the closed keys below are accepted by the retrieval contract. | Yes |
-| `k` | No | Positive integer; default `10` | Maximum number of retrieval results requested and cutoff for Recall/NDCG. | Yes |
-| `format` | No | `brief`, `full`, or `citations_only`; default `full` | Agent-visible retrieval rendering format. | Yes |
+| `query` | Yes | Nonblank string | User question supplied to `kb_search`; later also supplied to the answer judge. | Yes |
+| `domain` | Yes | Nonblank string | The one domain the call is scoped to. | Yes |
+| `limit` | No | Positive integer; default `10` | Maximum number of results requested and cutoff for Recall/NDCG. | Yes |
 | `expect` | No | Mapping; default `{}` | Retrieval invariants and human relevance labels. | No |
 | `expect_tool_call` | No | Exact tool-call mapping | Overrides the automatically derived emitted-call expectation. | No |
 | `probe_invalid_request` | No | Deliberately malformed request fields | Bypasses the skill and checks that the MCP/REST server rejects invalid input. | Sent only as the separate probe |
 | `answer_evaluation` | No | Mapping described below | Exact answer expectations, selected judge rubrics, and optional reference answer. | No; its selected inputs are used by validators/judges |
 
-## Caller fields
+## Entity identity
 
-| Field | Required | Allowed values | Meaning |
-| --- | --- | --- | --- |
-| `department` | Yes | Nonblank string | Retrieval scope sent as `scope.department`. |
-| `product` | No | Nonblank string or `null`; default `null` | More specific retrieval scope sent as `scope.product`. |
-
-## Filter fields
-
-The filter vocabulary is closed. An unknown key in a normal request is an error, not
-something the server may silently ignore.
-
-| Field | Required | Allowed values and default | Meaning |
-| --- | --- | --- | --- |
-| `veracity` | No | List containing `verified`, `derived`, or both; omitted means no explicit veracity filter | Restricts results by verification state. |
-| `validity` | No | String; default `current` | Selects the requested validity view. The current contract does not yet define a closed enum beyond the conventional `current` value. |
+Every result and every expectation addresses an entity as `Label/key` (e.g.
+`Service/pricing-api`, `Commit/github.com/paastry/svc-pricing-api@a1f9c2d`) --
+the same string `skill.contracts.Entity.identity` builds. There is no separate
+version field: `kb_search` results do not carry one.
 
 ## Retrieval expectations
 
 | Field | Required | Allowed values | Effect |
 | --- | --- | --- | --- |
-| `expect.relevant` | No | Nonempty list of unique note labels containing `note`, positive `version`, and `grade` `0`, `1`, or `2` | Enables Recall, Precision, MRR, and NDCG. Grades are query-specific. The version is stored and shape-validated, but current ranking calculations compare note ID only. |
-| `expect.must_not_return` | No | List of note IDs | Adds a zero-tolerance validator: any listed note in the results fails the case. |
-| `expect.expected_first_result` | No | One nonblank note ID | Requires that note to occupy rank 1. An empty result also fails. |
+| `expect.relevant` | No | Nonempty list of unique `{entity, grade}` pairs, `grade` `0`, `1`, or `2` | Enables Recall, Precision, MRR, and NDCG. Grades are query-specific. |
+| `expect.must_not_return` | No | List of entity identities | Adds a zero-tolerance validator: any listed entity in the results fails the case. |
+| `expect.expected_first_result` | No | One entity identity | Requires that entity to occupy rank 1. An empty result also fails. |
 
 Relevance grades have these meanings:
 
@@ -137,42 +117,35 @@ Relevance grades have these meanings:
 | `2` | Directly answers the question | Relevant to all metrics and receives greater NDCG gain. |
 | `1` | Materially useful but insufficient alone | Relevant to all metrics and receives lower NDCG gain. |
 | `0` | Not relevant | Not relevant to any metric. |
-| Unlisted | No label for this query-note pair | Currently treated as not relevant. |
+| Unlisted | No label for this query-entity pair | Currently treated as not relevant. |
 
-`must_not_return` is not grade `0`. Grade `0` means irrelevant; a forbidden note is a
+`must_not_return` is not grade `0`. Grade `0` means irrelevant; a forbidden entity is a
 defect regardless of its rank.
 
 ## Exact emitted-call expectation
 
-Normally, the harness derives the expected call from `query`, `caller`, `filters`,
-`k`, and `format`. Use `expect_tool_call` only when the scenario needs to state the
-entire exact request explicitly. Its currently supported tool is
-`knowledge_retrieve`; `args` should contain the complete expected request rather than
-only the field being emphasized.
+Normally, the harness derives the expected call from `query`, `domain`, and `limit`.
+Use `expect_tool_call` only when the scenario needs to state the entire exact request
+explicitly. Its currently supported tool is `kb_search`; `args` should contain the
+complete expected request rather than only the field being emphasized.
 
 ```yaml
 expect_tool_call:
-  tool: knowledge_retrieve
+  tool: kb_search
   args:
+    domain: paastry
     query: What should the agent retrieve?
-    scope:
-      department: commerce
-      product: shop
-    filters:
-      veracity: [verified]
-      validity: current
-    k: 10
-    format: full
+    limit: 10
 ```
 
 ## Invalid-request probe
 
 `probe_invalid_request` intentionally has no closed value set: its purpose is to
-contain a malformed field or value such as a blank `query`, an unknown filter, an
-invalid `k`, or an unsupported `format`. The harness combines it with the case's
-otherwise valid request and sends it directly to the server, bypassing the skill.
-The rejection validator runs only with `--transport mcp` or `--transport rest`; it is
-not applicable to `inprocess` execution.
+contain a malformed field or value such as a blank `query` or a wrong-typed
+`limit`. The harness combines it with the case's otherwise
+valid request and sends it directly to the server, bypassing the skill. The rejection
+validator runs only with `--transport mcp` or `--transport rest`; it is not applicable
+to `inprocess` execution.
 
 ## Generated-answer evaluation
 
@@ -180,8 +153,8 @@ not applicable to `inprocess` execution.
 | --- | --- | --- | --- |
 | `answer_evaluation.expect` | No | Mapping; default `{}` | Groups exact deterministic answer expectations. |
 | `answer_evaluation.expect.status` | No | `answered` or `insufficient_context` | Requires the captured structured response to have exactly this status. |
-| `answer_evaluation.expect.required_citations` | No | Unique list of `{note_id: <nonblank string>, version: <positive integer>}`; default `[]` | Requires every exact note-version citation. |
-| `answer_evaluation.expect.must_not_cite` | No | Same citation shape; default `[]` | Forbids every exact note-version citation. A citation cannot be both required and forbidden. |
+| `answer_evaluation.expect.required_citations` | No | Unique list of `{label: <nonblank string>, key: <nonblank string>}`; default `[]` | Requires every exact entity citation. |
+| `answer_evaluation.expect.must_not_cite` | No | Same citation shape; default `[]` | Forbids every exact entity citation. A citation cannot be both required and forbidden. |
 | `answer_evaluation.rubrics` | Yes when `answer_evaluation` exists | Nonempty unique list. Current rubric names: `faithfulness`, `relevancy`, `answer_correctness` | Selects the LLM-judge criteria for this case. |
 | `answer_evaluation.reference_answer` | No | Nonblank string or omitted | Reviewed semantic comparison target. Required when `answer_correctness` is selected. |
 

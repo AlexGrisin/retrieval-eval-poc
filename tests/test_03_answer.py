@@ -99,8 +99,8 @@ def test_agent_check_is_explicit_and_traceable(captured_runs, case_id, check_nam
 def test_unretrieved_citation_fails_deterministically(
     synthetic_case, synthetic_retrieval_result
 ):
-    response = _response_fixture("case-001-retries-ranking")
-    response["citations"].append({"note_id": "n-9999", "version": 1})
+    response = _response_fixture("case-001-rounding-fix-ranking")
+    response["citations"].append({"label": "Service", "key": "nonexistent-service"})
 
     run = _evaluate(response, synthetic_retrieval_result, synthetic_case)
     failed = {check.name: check.detail for check in run.checks if check.status == "fail"}
@@ -108,7 +108,8 @@ def test_unretrieved_citation_fails_deterministically(
     assert run.deterministic_passed is False
     assert failed == {
         "answer:citations_were_retrieved": (
-            "answer cites note versions that were not retrieved: ['n-9999@1']"
+            "answer cites entities that were not retrieved: "
+            "['Service/nonexistent-service']"
         )
     }
 
@@ -117,14 +118,17 @@ def test_unretrieved_citation_fails_deterministically(
 def test_missing_required_citation_fails_deterministically(
     synthetic_case, synthetic_retrieval_result
 ):
-    response = _response_fixture("case-001-retries-ranking")
+    response = _response_fixture("case-001-rounding-fix-ranking")
     response["citations"] = response["citations"][:-1]
 
     run = _evaluate(response, synthetic_retrieval_result, synthetic_case)
     failed = {check.name: check.detail for check in run.checks if check.status == "fail"}
 
     assert failed == {
-        "answer:required_citations": "answer is missing required citations: ['n-0003@2']"
+        "answer:required_citations": (
+            "answer is missing required citations: "
+            "['DocChunk/pricing-rounding-design-doc']"
+        )
     }
 
 
@@ -132,8 +136,10 @@ def test_missing_required_citation_fails_deterministically(
 def test_forbidden_citation_fails_even_when_it_was_not_retrieved(
     synthetic_case, synthetic_retrieval_result
 ):
-    response = _response_fixture("case-001-retries-ranking")
-    response["citations"].append({"note_id": "n-0004", "version": 1})
+    response = _response_fixture("case-001-rounding-fix-ranking")
+    response["citations"].append(
+        {"label": "Feature", "key": "tiered-discount-calculation"}
+    )
 
     run = _evaluate(response, synthetic_retrieval_result, synthetic_case)
     failed = {check.name for check in run.checks if check.status == "fail"}
@@ -148,7 +154,7 @@ def test_forbidden_citation_fails_even_when_it_was_not_retrieved(
 def test_wrong_structured_answer_status_fails_without_an_llm(
     synthetic_case, synthetic_retrieval_result
 ):
-    response = _response_fixture("case-001-retries-ranking")
+    response = _response_fixture("case-001-rounding-fix-ranking")
     response["status"] = "insufficient_context"
 
     run = _evaluate(response, synthetic_retrieval_result, synthetic_case)
@@ -165,7 +171,7 @@ def test_wrong_structured_answer_status_fails_without_an_llm(
 def test_malformed_agent_response_skips_dependent_checks(
     synthetic_case, synthetic_retrieval_result
 ):
-    response = _response_fixture("case-001-retries-ranking")
+    response = _response_fixture("case-001-rounding-fix-ranking")
     response["unexpected"] = True
 
     run = _evaluate(response, synthetic_retrieval_result, synthetic_case)
@@ -181,7 +187,7 @@ def test_malformed_agent_response_skips_dependent_checks(
 def test_blank_answer_fails_the_response_contract(
     synthetic_case, synthetic_retrieval_result
 ):
-    response = _response_fixture("case-001-retries-ranking")
+    response = _response_fixture("case-001-rounding-fix-ranking")
     response["answer"] = "   "
 
     run = _evaluate(response, synthetic_retrieval_result, synthetic_case)
@@ -198,8 +204,8 @@ def test_blank_answer_fails_the_response_contract(
 def test_judge_is_not_called_when_deterministic_prerequisites_fail(
     tmp_path, synthetic_case, synthetic_retrieval_result
 ):
-    response = _response_fixture("case-001-retries-ranking")
-    response["citations"].append({"note_id": "n-9999", "version": 1})
+    response = _response_fixture("case-001-rounding-fix-ranking")
+    response["citations"].append({"label": "Service", "key": "nonexistent-service"})
     run = _evaluate(response, synthetic_retrieval_result, synthetic_case)
     gateway = CriterionGateway()
 
@@ -222,7 +228,7 @@ def test_judge_is_not_called_when_deterministic_prerequisites_fail(
 def test_failed_run_can_be_judged_only_with_diagnostic_override(
     tmp_path, synthetic_case, synthetic_retrieval_result
 ):
-    response = _response_fixture("case-001-retries-ranking")
+    response = _response_fixture("case-001-rounding-fix-ranking")
     response["status"] = "insufficient_context"
     run = _evaluate(response, synthetic_retrieval_result, synthetic_case)
     gateway = CriterionGateway()
@@ -262,7 +268,7 @@ def test_valid_captured_run_is_judged_without_rerunning_retrieval(
     assert all(outcome.record and outcome.record.score == 1.0 for outcome in outcomes)
     assert all(run.question in prompt for prompt in gateway.prompts)
     assert all('"retrieved_context"' in prompt for prompt in gateway.prompts)
-    assert all("n-0001@3" in prompt for prompt in gateway.prompts)
+    assert all("Story/PAAS-201" in prompt for prompt in gateway.prompts)
 
 
 @framework_id("synthetic:answer:case_declared_rubrics_authoritative")

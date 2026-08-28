@@ -1,11 +1,12 @@
-"""A fake knowledge server: fixture corpus in, deterministic ranking out.
+"""A fake knowledge graph: fixture entities in, deterministic ranking out.
 
 Deliberate limits, so nobody mistakes green tests for good retrieval:
-  * Ranking is token overlap, NOT embeddings. Scores here say nothing about
-    real retrieval quality. They exist so the harness has non-degenerate
-    numbers to compute and compare.
-  * Filtering, scope isolation, veracity and supersedes ARE enforced faithfully,
-    because those are contract behaviours the skill must not undo downstream.
+  * Ranking is token overlap, NOT embeddings/fulltext. Scores here say nothing
+    about real retrieval quality. They exist so the harness has non-degenerate
+    numbers to compute and compare. `matched_by` is always reported as
+    "fulltext" -- there is no vector index in this fake.
+  * Domain scoping IS enforced faithfully, because that is the one contract
+    behaviour the skill must not undo downstream.
 
 Every run stamped by this backend records mode="mock" so a mock baseline can
 never be compared against a real one.
@@ -18,7 +19,7 @@ from pathlib import Path
 
 import yaml
 
-from .contracts import NoteResult, RetrieveRequest, RetrieveResponse
+from .contracts import Citation, Entity, SearchHit, SearchRequest, SearchResponse
 
 _TOKEN = re.compile(r"[a-z0-9]+")
 
@@ -32,89 +33,65 @@ def _tokens(text: str) -> set[str]:
     return {t for t in _TOKEN.findall(text.lower()) if t not in STOPWORDS}
 
 
-class FakeKnowledgeServer:
+class FakeKnowledgeGraph:
     mode = "mock"
 
     def __init__(self, corpus_path: str | Path) -> None:
         self.corpus_path = Path(corpus_path)
         raw = yaml.safe_load(self.corpus_path.read_text())
-        self.notes: list[dict] = raw["notes"]
+        self.domain: str = raw["domain"]
+        self.entities: list[dict] = raw["entities"]
         self.corpus_version: str = str(raw.get("version", "unversioned"))
-        self._superseded: set[str] = {
-            sid for n in self.notes for sid in (n.get("supersedes") or [])
-        }
 
-    # --- filtering -------------------------------------------------------
+    # --- scoping -----------------------------------------------------------
 
-    def _permitted(self, note: dict, request: RetrieveRequest) -> bool:
-        """Scope isolation: a caller only sees its own department.
+    def _permitted(self, request: SearchRequest) -> bool:
+        """Domain isolation: wrong domain returns clean empty results.
 
-        Real enforcement is server-side against Okta claims. Here it is a stand-in
-        whose only job is to be faithful enough that a skill-layer regression
-        (dropping the scope) shows up as a behaviour change.
+        Real enforcement is server-side against the domain's own graph
+        partition. Here it is a stand-in whose only job is to be faithful
+        enough that a skill-layer regression (dropping the domain) shows up
+        as a behaviour change.
         """
-        return note["department"] == request.scope.department
+        return request.domain == self.domain
 
-    def _passes_filters(self, note: dict, request: RetrieveRequest) -> bool:
-        f = request.filters
-        if f.veracity is not None and note["veracity"] not in f.veracity:
-            return False
-        if f.domain is not None and note.get("product") not in f.domain:
-            return False
-        if f.memory_type is not None and note.get("memory_type") not in f.memory_type:
-            return False
-        if f.validity == "current" and note["note_id"] in self._superseded:
-            return False  # superseded notes are never current
-        return True
-
-    # --- ranking ---------------------------------------------------------
+    # --- ranking -------------------------------------------------------
 
     @staticmethod
-    def _score(note: dict, query_tokens: set[str]) -> float:
-        haystack = _tokens(
-            " ".join([note["title"], note["claim"], " ".join(note.get("aliases") or [])])
-        )
+    def _score(entity: dict, query_tokens: set[str]) -> float:
+        haystack = _tokens(" ".join([entity["title"], entity["snippet"]]))
         if not haystack:
             return 0.0
         overlap = len(query_tokens & haystack)
         return round(overlap / (len(query_tokens) ** 0.5 * len(haystack) ** 0.5), 6)
 
-    def retrieve(self, request: RetrieveRequest) -> RetrieveResponse:
+    def search(self, request: SearchRequest) -> SearchResponse:
+        if not self._permitted(request):
+            return SearchResponse(results=[])
+
         qt = _tokens(request.query)
         scored: list[tuple[float, dict]] = []
-        for note in self.notes:
-            if not self._permitted(note, request):
-                continue
-            if not self._passes_filters(note, request):
-                continue
-            score = self._score(note, qt)
+        for entity in self.entities:
+            score = self._score(entity, qt)
             if score > 0:
-                scored.append((score, note))
+                scored.append((score, entity))
 
-        # Deterministic tie-break by note_id so runs are byte-identical.
-        scored.sort(key=lambda pair: (-pair[0], pair[1]["note_id"]))
-        top = scored[: request.k]
+        # Deterministic tie-break by (label, key) so runs are byte-identical.
+        scored.sort(key=lambda pair: (-pair[0], pair[1]["label"], pair[1]["key"]))
+        top = scored[: request.limit]
 
         results = [
-            NoteResult(
-                note_id=n["note_id"],
-                version=int(n["version"]),
-                title=n["title"],
-                claim=n["claim"],
-                veracity=n["veracity"],
-                valid_to=n.get("valid_to"),
-                source_system=n["source"]["system"],
-                source_locator=n["source"]["locator"],
-                source_version=n["source"]["version"],
+            SearchHit(
+                entity=Entity(label=e["label"], key=e["key"]),
+                title=e["title"],
+                snippet=e["snippet"],
                 score=score,
+                matched_by="fulltext",
+                citations=[
+                    Citation(source_system=c["source_system"], reference=c["reference"])
+                    for c in e.get("citations", [])
+                ],
             )
-            for score, n in top
+            for score, e in top
         ]
-
-        facets: dict[str, dict[str, int]] = {"product": {}, "veracity": {}}
-        for _, n in scored:
-            facets["product"][n.get("product") or "-"] = (
-                facets["product"].get(n.get("product") or "-", 0) + 1
-            )
-            facets["veracity"][n["veracity"]] = facets["veracity"].get(n["veracity"], 0) + 1
-        return RetrieveResponse(results=results, facets=facets)
+        return SearchResponse(results=results)

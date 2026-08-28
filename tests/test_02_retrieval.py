@@ -6,7 +6,7 @@ import pytest
 
 from harness.validators import CHECKS, applies_to
 from harness.validators.contract import check_response_contract
-from skill.contracts import NoteResult, RetrieveResponse
+from skill.contracts import Entity, SearchHit, SearchResponse
 from tests.support import framework_id, load_cases
 
 # Markers come from the traceability registry, so `-m "not unratified"` shows the
@@ -70,7 +70,7 @@ def test_check(case_results, case_id, check_name):
     tr = result["trace"]
     context = (
         f"tool call : {tr['tool_call']}\n"
-        f"  returned  : {[(r['note'], r['veracity']) for r in tr['results']]}\n"
+        f"  returned  : {[(r['entity'], r['matched_by']) for r in tr['results']]}\n"
         f"  rendered  :\n"
         + "\n".join(f"    | {line}" for line in tr["rendered"].rstrip().splitlines())
     )
@@ -85,22 +85,17 @@ def test_check(case_results, case_id, check_name):
 
 @framework_id("synthetic:response:wrong_field_type_rejected")
 def test_response_contract_reports_wrong_field_type():
-    response = RetrieveResponse(
+    response = SearchResponse(
         results=[
-            NoteResult(
-                note_id="n-0001",
-                version="3",  # type: ignore[arg-type] - deliberate wire-contract fault
+            SearchHit(
+                entity=Entity(label="Service", key="pricing-api"),
                 title="Example",
-                claim="Example claim",
-                veracity="verified",
-                valid_to=None,
-                source_system="git",
-                source_locator="notes/example.md",
-                source_version="abc123",
-                score=1.0,
+                snippet="Example snippet",
+                score="1.0",  # type: ignore[arg-type] - deliberate wire-contract fault
+                matched_by="fulltext",
+                citations=[],
             )
         ],
-        facets={},
     )
 
     detail = check_response_contract(response)

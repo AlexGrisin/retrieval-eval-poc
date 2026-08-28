@@ -1,0 +1,24 @@
+title: Domain isolation -- a domain with no matching entities returns nothing
+why: >-
+  mcp-tool-contracts-reference.md Gotcha 4: "Wrong domain returns clean empty
+  results -- not an error." A case whose correct answer is the empty set
+  catches a skill that silently drops or defaults the domain argument.
+
+query: why was the pricing rounding bug fixed?
+domain: unrelated-domain
+limit: 10
+
+expect:
+  must_not_return:
+    - Story/PAAS-201
+    - Commit/github.com/paastry/svc-pricing-api@a1f9c2d
+    - DocChunk/pricing-rounding-design-doc
+
+# Asserted as well as the result set, so a cooperative backend cannot pass this
+# case on the skill's behalf: the domain must actually have been sent.
+expect_tool_call:
+  tool: kb_search
+  args:
+    domain: unrelated-domain
+    query: why was the pricing rounding bug fixed?
+    limit: 10

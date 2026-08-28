@@ -6,11 +6,9 @@ why: >-
 # The regular execution remains valid so the global request, response, and provenance
 # validators still run. The deliberately invalid query is sent separately, directly to
 # the server, by probe_invalid_request.
-query: how do we handle retries on payment failures?
-caller: {department: commerce, product: shop}
-filters: {veracity: [verified], validity: current}
-k: 10
-format: full
+query: why was the pricing rounding bug fixed?
+domain: paastry
+limit: 10
 
 probe_invalid_request:
   query: "   "

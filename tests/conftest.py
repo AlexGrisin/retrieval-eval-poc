@@ -189,7 +189,7 @@ def synthetic_case() -> dict:
     """Fixed local case for framework tests; never uses the selected target."""
     return next(
         case for case in load_cases()
-        if case["id"] == "case-001-retries-ranking"
+        if case["id"] == "case-001-rounding-fix-ranking"
     )
 
 
@@ -204,7 +204,7 @@ def synthetic_retrieval_result(synthetic_case) -> dict:
 
 @pytest.fixture(scope="session")
 def synthetic_agent_run(synthetic_case, synthetic_retrieval_result):
-    response = load_agent_response(RESPONSE_DIR / "case-001-retries-ranking.yaml")
+    response = load_agent_response(RESPONSE_DIR / "case-001-rounding-fix-ranking.yaml")
     return evaluate_agent_response(
         case=synthetic_case,
         retrieval_result=synthetic_retrieval_result,

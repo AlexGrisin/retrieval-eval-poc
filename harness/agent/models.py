@@ -13,21 +13,24 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 
 class Citation(BaseModel):
+    """An answer's citation, identified the same way kb_search identifies
+    entities: `label/key` (see skill.contracts.Entity.identity)."""
+
     model_config = ConfigDict(extra="forbid", strict=True)
 
-    note_id: str = Field(min_length=1)
-    version: int = Field(gt=0)
+    label: str = Field(min_length=1)
+    key: str = Field(min_length=1)
 
-    @field_validator("note_id")
+    @field_validator("label", "key")
     @classmethod
-    def note_id_is_nonblank(cls, value: str) -> str:
+    def is_nonblank(cls, value: str) -> str:
         if not value.strip():
             raise ValueError("must not be blank")
         return value
 
     @property
     def ref(self) -> str:
-        return f"{self.note_id}@{self.version}"
+        return f"{self.label}/{self.key}"
 
 
 class AgentResponse(BaseModel):

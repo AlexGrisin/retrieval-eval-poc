@@ -106,3 +106,36 @@ Confidence scale: **high** = observed directly in the repo, only the intent is o
   [PATTERNS/fixture-load-and-validate.md](./PATTERNS/fixture-load-and-validate.md) —
   promote to a standalone pattern if a second numbered-sequence fixture type appears.
 
+## kb_search migration (in progress)
+
+### kb_fetch and kb_related are not implemented
+
+- `mcp-tool-contracts-reference.md` specifies three tools; this workspace's harness,
+  fixture, cases, and validators cover `kb_search` only (see
+  `KB-SEARCH-MIGRATION-PLAN.md`). `kb_fetch`'s `found: false`-is-not-an-error
+  semantics and `kb_related`'s depth/direction graph traversal have no code or cases
+  yet, though `fixtures/corpus.yaml` already carries `relationships` for when that
+  phase starts.
+- Confidence: high (deliberately scoped out, not an oversight). Resolve in: a follow-up
+  migration plan, same shape as `KB-SEARCH-MIGRATION-PLAN.md`.
+
+### Root ARCHITECTURE.md §§4-9 still describe the retired knowledge_retrieve contract
+
+- §§1-3 were rewritten for `kb_search` (request/response shape, entity identity).
+  §§4 (deterministic validators table), 5 (ranking metrics prose), 6 (generated-answer
+  JSON examples), 7 (pytest execution — mostly still accurate, some field mentions
+  stale), 8 (target end-to-end flow), and 9 (ownership map) were not, and still say
+  "note", "veracity", "scope.department" in places. The code (schemas, validators,
+  runner, cases, tests) is fully migrated and green across all three transports;
+  only this narrative's tail is stale. A migration-note banner at the top of the file
+  flags exactly this.
+- Confidence: high. Resolve in: `../ARCHITECTURE.md` §§4-9, a follow-up editorial pass.
+
+### docs/PATTERNS/*.md code excerpts show the retired contract's field names
+
+- The pattern *descriptions* (strict-boundary-contract, multi-transport-adapter, etc.)
+  still apply unchanged to `kb_search` — confirmed during the migration — but their
+  embedded code excerpts (e.g. `NoteResult`, `knowledge_retrieve`) were not refreshed
+  to `SearchHit`/`kb_search`.
+- Confidence: high. Resolve in: `docs/PATTERNS/*.md`, a follow-up editorial pass.
+

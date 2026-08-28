@@ -1,0 +1,16 @@
+title: A malformed argument value is rejected at the server boundary
+why: >-
+  Silently coercing or ignoring a wrong-typed argument can make callers believe
+  a constraint was enforced when the server actually ignored it. kb_search has
+  no nested object to close a vocabulary over (unlike the old filters object),
+  so the boundary property this probes is per-argument type enforcement:
+  limit must be an integer, not a string.
+
+# The regular execution remains valid so the standard request, response, and
+# provenance validators still run. The malformed argument is sent separately.
+query: why was the pricing rounding bug fixed?
+domain: paastry
+limit: 10
+
+probe_invalid_request:
+  limit: not-a-number   # must be rejected at the server trust boundary

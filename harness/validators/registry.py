@@ -11,17 +11,18 @@ CHECKS: dict[str, dict[str, str]] = {
     "contract:emitted_tool_call": {
         "declared_by": "case request fields; optional expect_tool_call override",
         "status": "traced",
-        "source": "task statement: 'defining request context and filters'",
+        "source": "mcp-tool-contracts-reference.md §2.1, kb_search argument shape",
         "rationale": (
-            "A dropped filter raises recall while breaking scope isolation, so no "
-            "metric detects it. The emitted call is the only place it is visible."
+            "A dropped or renamed argument (domain, query, limit) breaks domain "
+            "isolation or intent silently, and no ranking metric detects it. The "
+            "emitted call is the only place it is visible."
         ),
     },
     "contract:server_rejects_invalid_request": {
         "declared_by": "probe_invalid_request + --transport mcp|rest",
         "status": "traced",
-        "source": "Component Guide 5.4 and 11, enforcement is server side, "
-                  "clients are never trusted",
+        "source": "mcp-tool-contracts-reference.md, extra=forbid enforcement is "
+                  "server side, clients are never trusted",
         "rationale": (
             "A client-side check can be bypassed. The server must reject invalid "
             "input at the trust boundary for every caller."
@@ -30,8 +31,7 @@ CHECKS: dict[str, dict[str, str]] = {
     "contract:response_contract_valid": {
         "declared_by": "every retrieval execution",
         "status": "traced",
-        "source": "Component Guide 4.3 and 11, the response contract carries "
-                  "versioned provenance and facets",
+        "source": "mcp-tool-contracts-reference.md §2.1, SearchHit response shape",
         "rationale": (
             "A successful protocol call is not enough: renamed, missing, or wrongly "
             "typed output fields make the response unusable to the skill."
@@ -40,30 +40,31 @@ CHECKS: dict[str, dict[str, str]] = {
     "retrieval:must_not_return": {
         "declared_by": "expect.must_not_return",
         "status": "traced",
-        "source": "Component Guide 4.4 veracity tiers, 8.2 supersedes chains, "
-                  "5.4 query-time access control",
+        "source": "mcp-tool-contracts-reference.md Gotcha 1 and 2, ranking correctness",
         "rationale": (
-            "Superseded, unreviewed, or out-of-scope notes reaching a caller is a "
+            "A superseded, reverted, or out-of-domain entity reaching a caller is a "
             "defect regardless of rank, not a lower score."
         ),
     },
     "retrieval:expected_first_result": {
         "declared_by": "expect.expected_first_result",
         "status": "traced",
-        "source": "Component Guide 8.2, resolve which version is authoritative",
+        "source": "mcp-tool-contracts-reference.md Gotcha 2, exact identifiers can "
+                  "rank below doc chunks",
         "rationale": (
-            "A similarity-only system returns the superseded note when it is the "
-            "better lexical match. Ranking the current one first is the whole point "
-            "of having a graph."
+            "A lexical-overlap-only system can rank a superseded or reverted entity "
+            "above the authoritative one. Full precedence over lexical overlap is a "
+            "kb_related concern (deferred); this check covers basic ranking "
+            "correctness for kb_search alone."
         ),
     },
     "format:every_result_has_provenance": {
         "declared_by": "every retrieval execution",
         "status": "traced",
-        "source": "Component Guide 4.3 and 11, provenance is pinned and carried forward",
+        "source": "mcp-tool-contracts-reference.md Gotcha 5, cite everything",
         "rationale": (
-            "Both note@version and the original source pointer must survive rendering "
-            "so every agent-visible result can be resolved and audited."
+            "Both the entity identity and at least one citation must survive "
+            "rendering so every agent-visible result can be resolved and audited."
         ),
     },
 }

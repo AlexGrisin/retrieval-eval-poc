@@ -8,28 +8,17 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from skill.schemas import RetrieveResponseOut
+from skill.schemas import SearchResponseOut
 
 
 def expected_tool_call(case: dict) -> dict:
     """Build the request oracle from case data, independently of skill contracts."""
-    raw_filters = case.get("filters", {}) or {}
-    filters = {"validity": raw_filters.get("validity", "current")}
-    for key in ("domain", "veracity", "memory_type"):
-        if key in raw_filters:
-            filters[key] = raw_filters[key]
-    caller = case["caller"]
     return {
-        "tool": "knowledge_retrieve",
+        "tool": "kb_search",
         "args": {
+            "domain": case["domain"],
             "query": case["query"],
-            "scope": {
-                "department": caller["department"],
-                "product": caller.get("product"),
-            },
-            "filters": filters,
-            "k": case.get("k", 10),
-            "format": case.get("format", "full"),
+            "limit": case.get("limit", 10),
         },
     }
 
@@ -52,7 +41,7 @@ def check_response_contract(response: Any) -> str | None:
     """Require the decoded response to match the published response schema."""
     try:
         payload = response.as_dict()
-        RetrieveResponseOut.model_validate(payload, strict=True)
+        SearchResponseOut.model_validate(payload, strict=True)
     except (AttributeError, TypeError, ValidationError, ValueError) as exc:
         return f"response does not match the published contract: {exc}"
     return None
@@ -61,30 +50,23 @@ def check_response_contract(response: Any) -> str | None:
 def check_server_rejects_invalid_request(
     spy: Any,
     query: str,
-    caller: dict,
+    domain: str,
     invalid_fields: dict,
     transport: str,
 ) -> str | None:
     """Bypass the skill and require the server boundary to reject invalid input."""
-    args = {
-        "query": query,
-        "scope": {"department": caller["department"], "product": caller.get("product")},
-        **invalid_fields,
-    }
+    args = {"domain": domain, "query": query, **invalid_fields}
 
     def mentions_invalid_field(message: str) -> bool:
-        keys = set(invalid_fields)
-        if isinstance(invalid_fields.get("filters"), dict):
-            keys.update(invalid_fields["filters"])
         lowered = message.lower()
-        return any(str(key).lower() in lowered for key in keys)
+        return any(str(key).lower() in lowered for key in invalid_fields)
 
     if transport == "mcp":
         from mcp.client.client import Client
 
         async def call_mcp():
             async with Client(spy._inner._target) as client:
-                return await client.call_tool("knowledge_retrieve", args)
+                return await client.call_tool("kb_search", args)
 
         try:
             result = asyncio.run(call_mcp())
@@ -115,7 +97,7 @@ def check_server_rejects_invalid_request(
                 }
             )
             async with httpx.AsyncClient(**client_args) as client:
-                return await client.post("/knowledge/retrieve", json=args)
+                return await client.post("/kb/search", json=args)
 
         response = asyncio.run(call_rest())
         if response.status_code == 422:

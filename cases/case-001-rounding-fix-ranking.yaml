@@ -1,0 +1,32 @@
+title: Rounding-fix story ranking -- recall and ranking
+why: >-
+  The baseline metric case, mirroring the contract's own "why was this code
+  changed?" recipe (kb_search the commit -> kb_related to the story -- the
+  kb_related hop is deferred, so this case grades kb_search's own ranking of
+  the story, commit, and design doc together). Graded relevance, so nDCG can
+  distinguish "found the driving story" from "found it and ranked it first".
+
+query: why was the pricing rounding bug fixed?
+domain: paastry
+limit: 10
+
+expect:
+  relevant:
+    - {entity: Story/PAAS-201, grade: 2}                                       # the actual answer
+    - {entity: Commit/github.com/paastry/svc-pricing-api@a1f9c2d, grade: 1}     # the implementing commit
+    - {entity: DocChunk/pricing-rounding-design-doc, grade: 1}                  # useful background
+
+answer_evaluation:
+  expect:
+    status: answered
+    required_citations:
+      - {label: Story, key: PAAS-201}
+      - {label: Commit, key: github.com/paastry/svc-pricing-api@a1f9c2d}
+      - {label: DocChunk, key: pricing-rounding-design-doc}
+    must_not_cite:
+      - {label: Feature, key: tiered-discount-calculation}
+  rubrics: [faithfulness, relevancy, answer_correctness]
+  reference_answer: >-
+    The tiered discount calculation undercharged customers due to a rounding error.
+    Story PAAS-201 tracked the fix, implemented in commit a1f9c2d, which corrected
+    the rounding behaviour.

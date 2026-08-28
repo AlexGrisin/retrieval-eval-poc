@@ -16,23 +16,22 @@ from pydantic import ValidationError
 
 from harness.agent.models import AnswerEvaluationSpec
 
-REQUIRED_KEYS = {"title", "why", "query", "caller"}
+REQUIRED_KEYS = {"title", "why", "query", "domain"}
 ALLOWED_KEYS = REQUIRED_KEYS | {
-    "filters",
-    "k",
-    "format",
+    "limit",
     "expect",
     "expect_tool_call",
     "probe_invalid_request",
     "answer_evaluation",
 }
 CASE_ID_PATTERN = re.compile(r"case-([0-9]{3})-[a-z0-9]+(?:-[a-z0-9]+)*")
-ALLOWED_CALLER_KEYS = {"department", "product"}
 ALLOWED_EXPECT_KEYS = {
     "relevant",
     "must_not_return",
     "expected_first_result",
 }
+# Entity identity: "Label/key", per skill.contracts.Entity.identity.
+ENTITY_IDENTITY_PATTERN = re.compile(r"[A-Za-z]+/\S+")
 
 
 class CaseSpecError(ValueError):
@@ -48,6 +47,13 @@ def _mapping(value: Any, where: str) -> dict:
 def _string(value: Any, where: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise CaseSpecError(f"{where} must be a non-empty string")
+    return value
+
+
+def _entity_identity(value: Any, where: str) -> str:
+    value = _string(value, where)
+    if not ENTITY_IDENTITY_PATTERN.fullmatch(value):
+        raise CaseSpecError(f"{where} must look like Label/key; got {value!r}")
     return value
 
 
@@ -73,23 +79,11 @@ def validate_case(
                 f"{source} filename must look like "
                 f"case-001-retries-ranking.yaml; got {case_id!r}"
             )
-    for key in ("title", "why", "query"):
+    for key in ("title", "why", "query", "domain"):
         _string(case[key], f"{source}.{key}")
 
-    caller = _mapping(case["caller"], f"{source}.caller")
-    unknown_caller = caller.keys() - ALLOWED_CALLER_KEYS
-    if unknown_caller:
-        raise CaseSpecError(
-            f"{source}.caller has unknown key(s): {sorted(unknown_caller)}"
-        )
-    _string(caller.get("department"), f"{source}.caller.department")
-    if caller.get("product") is not None:
-        _string(caller["product"], f"{source}.caller.product")
-
-    if "k" in case and (not isinstance(case["k"], int) or case["k"] <= 0):
-        raise CaseSpecError(f"{source}.k must be a positive integer")
-    if "filters" in case:
-        _mapping(case["filters"], f"{source}.filters")
+    if "limit" in case and (not isinstance(case["limit"], int) or case["limit"] <= 0):
+        raise CaseSpecError(f"{source}.limit must be a positive integer")
     if "probe_invalid_request" in case:
         _mapping(case["probe_invalid_request"], f"{source}.probe_invalid_request")
 
@@ -104,33 +98,32 @@ def validate_case(
     if relevant is not None:
         if not isinstance(relevant, list) or not relevant:
             raise CaseSpecError(f"{source}.expect.relevant must be a non-empty list")
-        seen_notes: set[str] = set()
+        seen_entities: set[str] = set()
         for index, relevance_label in enumerate(relevant):
             where = f"{source}.expect.relevant[{index}]"
             relevance_label = _mapping(relevance_label, where)
-            missing_label = {"note", "version", "grade"} - relevance_label.keys()
+            missing_label = {"entity", "grade"} - relevance_label.keys()
             if missing_label:
                 raise CaseSpecError(
                     f"{where} is missing required key(s): {sorted(missing_label)}"
                 )
-            note = _string(relevance_label["note"], f"{where}.note")
-            if note in seen_notes:
-                raise CaseSpecError(f"{source} grades note {note!r} more than once")
-            seen_notes.add(note)
-            if (
-                not isinstance(relevance_label["version"], int)
-                or relevance_label["version"] <= 0
-            ):
-                raise CaseSpecError(f"{where}.version must be a positive integer")
+            entity = _entity_identity(relevance_label["entity"], f"{where}.entity")
+            if entity in seen_entities:
+                raise CaseSpecError(f"{source} grades entity {entity!r} more than once")
+            seen_entities.add(entity)
             if relevance_label["grade"] not in {0, 1, 2}:
                 raise CaseSpecError(f"{where}.grade must be 0, 1, or 2")
 
     if "must_not_return" in expect:
         forbidden = expect["must_not_return"]
         if not isinstance(forbidden, list) or not all(isinstance(n, str) for n in forbidden):
-            raise CaseSpecError(f"{source}.expect.must_not_return must be a list of IDs")
+            raise CaseSpecError(
+                f"{source}.expect.must_not_return must be a list of entity identities"
+            )
+        for index, entity in enumerate(forbidden):
+            _entity_identity(entity, f"{source}.expect.must_not_return[{index}]")
     if "expected_first_result" in expect:
-        _string(
+        _entity_identity(
             expect["expected_first_result"],
             f"{source}.expect.expected_first_result",
         )

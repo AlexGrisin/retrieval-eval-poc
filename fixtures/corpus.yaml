@@ -1,120 +1,115 @@
-# Fixture corpus: frozen, hand-built, ~9 notes. Never grows organically.
-# Bump `version` on any edit. The run manifest also hashes the complete file, so a
-# score change cannot be compared without detecting the corpus change.
-version: fixture-2026-08-20.1
+# Fixture corpus: frozen, hand-built, small property graph over one domain (paastry).
+# Never grows organically. Bump `version` on any edit. The run manifest also hashes
+# the complete file, so a score change cannot be compared without detecting the
+# corpus change.
+#
+# `relationships` are not read by kb_search's fake backend (kb_search has no graph
+# traversal) -- they're here so the kb_fetch/kb_related follow-up phase has real
+# edges to walk instead of a second fixture rewrite.
+version: fixture-2026-08-28.1
 
-notes:
-  - note_id: n-0001
-    version: 3
-    title: Idempotency guarantees in the settlement path
-    claim: >-
-      Settlement writes are idempotent per payment intent, so retries after payment
-      failures must reuse the original idempotency key instead of generating a new one.
-    department: commerce
-    product: shop
-    memory_type: decision
-    veracity: verified
-    valid_to: "2026-12-31"
-    aliases: [Payments Service, payments-svc, PAYSVC]
-    supersedes: [n-0004]
-    source: {system: github, locator: acme/payments#docs/settlement.md, version: a1b2c3d}
+domain: paastry
 
-  - note_id: n-0002
-    version: 1
-    title: Payment failure taxonomy
-    claim: >-
-      Payment failures are classified terminal, retryable, or ambiguous; only
-      retryable failures may be retried.
-    department: commerce
-    product: shop
-    memory_type: reference
-    veracity: verified
-    valid_to: null
-    source: {system: confluence, locator: "PAY-4412", version: "7"}
+entities:
+  - label: Service
+    key: pricing-api
+    title: Pricing API
+    snippet: >-
+      Computes tiered subscription pricing and applies discount rounding rules.
+    citations: [{source_system: github, reference: "paastry/svc-pricing-api"}]
 
-  - note_id: n-0003
-    version: 2
-    title: Retry budgets for downstream calls
-    claim: >-
-      Each downstream call carries a retry budget; exhausting it surfaces terminal
-      failures rather than further retries.
-    department: commerce
-    product: shop
-    memory_type: standard
-    veracity: verified
-    valid_to: null
-    source: {system: github, locator: acme/platform#docs/resilience.md, version: 9f8e7d6}
+  - label: Service
+    key: tier-config-service
+    title: Tier Configuration Service
+    snippet: >-
+      Owns plan tier definitions and discount thresholds consumed by pricing-api.
+    citations: [{source_system: github, reference: "paastry/svc-tier-config"}]
 
-  # Superseded by n-0001. Must never be served as current -- case 002.
-  - note_id: n-0004
-    version: 1
-    title: Retry handling in the settlement path
-    claim: >-
-      Settlement retries payment failures up to three times with fixed backoff.
-    department: commerce
-    product: shop
-    memory_type: decision
-    veracity: verified
-    valid_to: "2025-06-30"
-    source: {system: github, locator: acme/payments#docs/settlement.md, version: 4d5e6f7}
+  - label: Team
+    key: pricing-team
+    title: Pricing Team
+    snippet: Owns pricing-api and tier-config-service end to end.
+    citations: [{source_system: docs, reference: "teams/pricing-team"}]
 
-  - note_id: n-0005
-    version: 1
-    title: Inventory reorder point calculation
-    claim: >-
-      Reorder point equals lead-time demand plus safety stock, recomputed nightly.
-    department: supply-chain
-    product: inventory-planning
-    memory_type: standard
-    veracity: verified
-    valid_to: null
-    source: {system: confluence, locator: "SC-1180", version: "3"}
+  - label: Person
+    key: alex-chen
+    title: Alex Chen
+    snippet: Engineer on the pricing team; authored the tiered-discount rounding fix.
+    citations: [{source_system: docs, reference: "people/alex-chen"}]
 
-  - note_id: n-0006
-    version: 1
-    title: Circuit breaker thresholds for PAYSVC
-    claim: >-
-      PAYSVC opens its circuit after fifty consecutive errors in a rolling minute.
-    department: commerce
-    product: shop
-    memory_type: standard
-    veracity: verified
-    valid_to: null
-    aliases: [PAYSVC, payments-svc, Payments Service]
-    source: {system: github, locator: acme/payments#ops/breaker.yaml, version: c3d4e5f}
+  - label: Repository
+    key: paastry/svc-pricing-api
+    title: svc-pricing-api
+    snippet: Source repository for the Pricing API service.
+    citations: [{source_system: github, reference: "paastry/svc-pricing-api"}]
 
-  # Homonym pair with n-0008: "order" means different things per department.
-  - note_id: n-0007
-    version: 1
-    title: Order lifecycle states
-    claim: Orders move through created, paid, picked, shipped, closed.
-    department: commerce
-    product: fulfilment
-    memory_type: reference
-    veracity: verified
-    valid_to: null
-    source: {system: jira, locator: "FUL-902", version: "2026-03-11T09:12:00Z"}
+  - label: Commit
+    key: github.com/paastry/svc-pricing-api@a1f9c2d
+    title: Fix rounding error in tiered discount calculation
+    snippet: >-
+      Corrects a rounding error that undercharged customers on tiered discount
+      plans. Accepted and merged.
+    citations:
+      - {source_system: github, reference: "paastry/svc-pricing-api@a1f9c2d"}
 
-  - note_id: n-0008
-    version: 1
-    title: Revenue recognition timing for orders
-    claim: Order revenue is recognised on shipment confirmation, not on payment capture.
-    department: finance
-    product: ledger
-    memory_type: standard
-    veracity: verified
-    valid_to: null
-    source: {system: confluence, locator: "FIN-77", version: "12"}
+  - label: Commit
+    key: github.com/paastry/svc-pricing-api@f00dfed
+    title: Attempt rounding fix for discount tiers (reverted)
+    snippet: >-
+      An earlier attempt at fixing tiered discount rounding. Reverted before
+      release; superseded by a1f9c2d.
+    citations:
+      - {source_system: github, reference: "paastry/svc-pricing-api@f00dfed"}
 
-  # Machine-extracted, never individually reviewed. Answers the retries query
-  # well, which is exactly why it is the veracity trap in cases 001 and 003.
-  - note_id: n-0009
-    version: 1
-    title: Settlement retry ceiling is five attempts
-    claim: Settlement stops after five retries for payment failures.
-    department: commerce
-    product: shop
-    memory_type: observation
-    veracity: derived
-    valid_to: null
-    source: {system: github, locator: acme/payments#src/settle.py, version: b2c3d4e}
+  - label: Story
+    key: PAAS-201
+    title: Fix pricing rounding error for tiered discounts
+    snippet: >-
+      Customers on tiered discount plans were undercharged due to a rounding
+      error; drove the pricing-api fix.
+    citations: [{source_system: jira, reference: "PAAS-201"}]
+
+  - label: Feature
+    key: tiered-discount-calculation
+    title: Tiered Discount Calculation
+    snippet: Computes the discount percentage applied at each subscription tier.
+    citations:
+      - {source_system: docs, reference: "features/tiered-discount-calculation"}
+
+  - label: TestSuite
+    key: pricing-api-unit-tests
+    title: Pricing API Unit Tests
+    snippet: >-
+      Unit test suite covering tiered discount calculation and rounding
+      behaviour.
+    citations: [{source_system: github, reference: "paastry/svc-pricing-api#tests"}]
+
+  - label: DocChunk
+    key: pricing-rounding-design-doc
+    title: Pricing Rounding Design Notes
+    snippet: Design rationale for how tiered discount rounding should behave.
+    citations:
+      - {source_system: confluence, reference: "PAAS-design-notes#rounding"}
+
+  - label: PullRequest
+    key: paastry/svc-pricing-api#482
+    title: "PR #482: Fix rounding error in tiered discount calculation"
+    snippet: >-
+      Pull request that merged the tiered-discount rounding fix authored by
+      Alex Chen.
+    citations: [{source_system: github, reference: "paastry/svc-pricing-api#482"}]
+
+relationships:
+  - {from: {label: Team, key: pricing-team}, type: OWNS, to: {label: Service, key: pricing-api}}
+  - {from: {label: Team, key: pricing-team}, type: OWNS, to: {label: Service, key: tier-config-service}}
+  - {from: {label: Person, key: alex-chen}, type: MEMBER_OF, to: {label: Team, key: pricing-team}}
+  - {from: {label: Commit, key: "github.com/paastry/svc-pricing-api@a1f9c2d"}, type: IN_REPOSITORY, to: {label: Repository, key: "paastry/svc-pricing-api"}}
+  - {from: {label: Commit, key: "github.com/paastry/svc-pricing-api@f00dfed"}, type: IN_REPOSITORY, to: {label: Repository, key: "paastry/svc-pricing-api"}}
+  - {from: {label: Person, key: alex-chen}, type: AUTHORED, to: {label: Commit, key: "github.com/paastry/svc-pricing-api@a1f9c2d"}}
+  - {from: {label: Commit, key: "github.com/paastry/svc-pricing-api@a1f9c2d"}, type: PART_OF, to: {label: Story, key: PAAS-201}}
+  - {from: {label: Commit, key: "github.com/paastry/svc-pricing-api@a1f9c2d"}, type: IMPLEMENTS, to: {label: Story, key: PAAS-201}}
+  - {from: {label: Story, key: PAAS-201}, type: DELIVERS, to: {label: Feature, key: tiered-discount-calculation}}
+  - {from: {label: Service, key: pricing-api}, type: DEPENDS_ON, to: {label: Service, key: tier-config-service}}
+  - {from: {label: TestSuite, key: pricing-api-unit-tests}, type: COVERS, to: {label: Feature, key: tiered-discount-calculation}}
+  - {from: {label: DocChunk, key: pricing-rounding-design-doc}, type: DESCRIBES, to: {label: Feature, key: tiered-discount-calculation}}
+  - {from: {label: PullRequest, key: "paastry/svc-pricing-api#482"}, type: IMPLEMENTS, to: {label: Story, key: PAAS-201}}

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Manual probe: drive the retrieval skill by hand.
+"""Manual probe: drive the kb_search skill by hand.
 
-    python3 probe.py "how do we handle retries on payment failures?"
-    python3 probe.py "..." --department finance --show-call
+    python3 probe.py "why was the pricing rounding bug fixed?"
+    python3 probe.py "..." --domain paastry --show-call
     python3 probe.py                      # interactive; blank line or Ctrl-D to quit
 
 Prints exactly what the skill renders, so what you see here is what an agent
@@ -21,11 +21,11 @@ sys.path.insert(0, str(ROOT))
 
 from skill.client import SpyClient
 from skill.contracts import ContractError
-from skill.fake_server import FakeKnowledgeServer
-from skill.skill import RetrievalSkill
+from skill.fake_server import FakeKnowledgeGraph
+from skill.skill import SearchSkill
 
 
-def build(corpus: str, transport: str = "inprocess") -> tuple[RetrievalSkill, SpyClient]:
+def build(corpus: str, transport: str = "inprocess") -> tuple[SearchSkill, SpyClient]:
     if transport == "mcp":
         from server_mcp import build_server
         from skill.client import MCPKnowledgeClient
@@ -37,30 +37,16 @@ def build(corpus: str, transport: str = "inprocess") -> tuple[RetrievalSkill, Sp
 
         spy = SpyClient(RESTKnowledgeClient(build_app(corpus)))
     else:
-        spy = SpyClient(FakeKnowledgeServer(corpus))
-    return RetrievalSkill(spy), spy
+        spy = SpyClient(FakeKnowledgeGraph(corpus))
+    return SearchSkill(spy), spy
 
 
-def ask(skill: RetrievalSkill, spy: SpyClient, query: str, args) -> None:
-    filters: dict = {"validity": args.validity}
-    if args.veracity:
-        filters["veracity"] = args.veracity
-    if args.domain:
-        filters["domain"] = args.domain
-    if args.bad_filter:
-        filters["colour"] = "red"  # deliberately invalid, to see the contract bite
-
+def ask(skill: SearchSkill, spy: SpyClient, query: str, args) -> None:
     try:
-        result = skill.retrieve(
-            query=query,
-            context={"department": args.department, "product": args.product},
-            filters=filters,
-            k=args.k,
-            output_format=args.format,
-        )
+        result = skill.search(domain=args.domain, query=query, limit=args.limit)
     except ContractError as exc:
-        print(f"\nContractError: {exc}\n(correct behaviour -- the filter was rejected,"
-              " not silently dropped)\n")
+        print(f"\nContractError: {exc}\n(correct behaviour -- the argument was "
+              "rejected, not silently dropped)\n")
         return
 
     if args.show_call:
@@ -71,27 +57,18 @@ def ask(skill: RetrievalSkill, spy: SpyClient, query: str, args) -> None:
     print(result.rendered)
     if args.scores:
         print("--- scores " + "-" * 53)
-        for r in result.response.results:
-            print(f"  {r.note_id}@{r.version}  score={r.score}  {r.veracity}")
+        for hit in result.response.results:
+            print(f"  {hit.entity.identity}  score={hit.score}  {hit.matched_by}")
         print()
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("query", nargs="?")
-    ap.add_argument("--department", default="commerce")
-    ap.add_argument("--product", default="shop")
-    ap.add_argument("--veracity", nargs="*", default=["verified"])
-    ap.add_argument("--validity", default="current",
-                    help="'current' hides superseded notes; any other value shows them")
-    ap.add_argument("--domain", nargs="*")
-    ap.add_argument("--k", type=int, default=10)
-    ap.add_argument("--format", default="full",
-                    choices=["brief", "full", "citations_only"])
+    ap.add_argument("--domain", default="paastry")
+    ap.add_argument("--limit", type=int, default=10)
     ap.add_argument("--show-call", action="store_true")
     ap.add_argument("--scores", action="store_true")
-    ap.add_argument("--bad-filter", action="store_true",
-                    help="inject an unknown filter key to see it rejected")
     ap.add_argument("--corpus", default=str(ROOT / "fixtures" / "corpus.yaml"))
     ap.add_argument("--transport", choices=["inprocess", "mcp", "rest"], default="inprocess")
     args = ap.parse_args()
@@ -102,8 +79,7 @@ def main() -> int:
         ask(skill, spy, args.query, args)
         return 0
 
-    print(f"scope {args.department}/{args.product} · veracity {args.veracity} "
-          f"· validity {args.validity}   (blank line to quit)")
+    print(f"domain {args.domain}   (blank line to quit)")
     while True:
         try:
             q = input("\nquery> ").strip()

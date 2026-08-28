@@ -42,13 +42,13 @@ from harness.validators.retrieval import (  # noqa: E402
 )
 from harness.ranking_metrics import score_case, summarize  # noqa: E402
 from skill.client import SpyClient  # noqa: E402
-from skill.fake_server import FakeKnowledgeServer  # noqa: E402
-from skill.skill import RetrievalSkill  # noqa: E402
+from skill.fake_server import FakeKnowledgeGraph  # noqa: E402
+from skill.skill import SearchSkill  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def make_skill(corpus: Path, transport: str) -> tuple[RetrievalSkill, SpyClient]:
+def make_skill(corpus: Path, transport: str) -> tuple[SearchSkill, SpyClient]:
     """Same skill, same backend, different seam.
 
     inprocess: the skill calls a Python object. Fast, and what CI should use.
@@ -70,14 +70,14 @@ def make_skill(corpus: Path, transport: str) -> tuple[RetrievalSkill, SpyClient]
 
         inner = RESTKnowledgeClient(build_app(corpus))
     else:
-        inner = FakeKnowledgeServer(corpus)
+        inner = FakeKnowledgeGraph(corpus)
     spy = SpyClient(inner)
-    return RetrievalSkill(spy), spy
+    return SearchSkill(spy), spy
 
 
 def run_case(case: dict, corpus: Path, transport: str = "inprocess") -> dict:
     skill, spy = make_skill(corpus, transport)
-    caller, expect = case["caller"], case.get("expect", {}) or {}
+    domain, expect = case["domain"], case.get("expect", {}) or {}
     invariant_failures: list[str] = []
     checks: list[dict] = []
 
@@ -116,19 +116,14 @@ def run_case(case: dict, corpus: Path, transport: str = "inprocess") -> dict:
     result = None
     retrieval_error = ""
     try:
-        result = skill.retrieve(
+        result = skill.search(
+            domain=domain,
             query=case["query"],
-            context={
-                "department": caller["department"],
-                "product": caller.get("product"),
-            },
-            filters=case.get("filters"),
-            k=case.get("k"),
-            output_format=case.get("format"),
+            limit=case.get("limit"),
         )
     except Exception as exc:
-        retrieval_error = f"retrieval failed before a valid response was decoded: {exc}"
-    ranked = [r.note_id for r in result.response.results] if result else []
+        retrieval_error = f"search failed before a valid response was decoded: {exc}"
+    ranked = [hit.entity.identity for hit in result.response.results] if result else []
 
     # --- contract: the emitted tool call ---------------------------------
     detail = check_emitted_tool_call(spy.last_call, case)
@@ -145,7 +140,7 @@ def run_case(case: dict, corpus: Path, transport: str = "inprocess") -> dict:
         # enforcement exists at the trust boundary rather than only in client code.
         if transport in ("mcp", "rest"):
             detail = check_server_rejects_invalid_request(
-                spy, case["query"], caller, case["probe_invalid_request"], transport
+                spy, case["query"], domain, case["probe_invalid_request"], transport
             )
             record(
                 "contract:server_rejects_invalid_request",
@@ -185,8 +180,8 @@ def run_case(case: dict, corpus: Path, transport: str = "inprocess") -> dict:
     # --- metrics ---------------------------------------------------------
     metrics = {}
     if result is not None and (relevant := expect.get("relevant")):
-        grades = {r["note"]: r["grade"] for r in relevant}
-        metrics = score_case(ranked, grades, case.get("k", 10))
+        grades = {r["entity"]: r["grade"] for r in relevant}
+        metrics = score_case(ranked, grades, case.get("limit", 10))
 
     return {
         "id": case["id"],
@@ -197,19 +192,21 @@ def run_case(case: dict, corpus: Path, transport: str = "inprocess") -> dict:
         "passed": not invariant_failures,
         "trace": {
             "query": case["query"],
-            "caller": caller,
-            "filters": case.get("filters"),
+            "domain": domain,
             "tool_call": spy.last_call,
             "calls": len(spy.calls),
             "results": (
                 [
-                    {"note": r.note_id, "v": r.version, "score": r.score,
-                     "veracity": r.veracity, "title": r.title}
-                    for r in result.response.results
+                    {
+                        "entity": hit.entity.identity,
+                        "title": hit.title,
+                        "score": hit.score,
+                        "matched_by": hit.matched_by,
+                    }
+                    for hit in result.response.results
                 ]
                 if result else []
             ),
-            "facets": result.response.facets if result else {},
             "rendered": result.rendered if result else "",
         },
     }
@@ -320,7 +317,7 @@ def main() -> int:
     corpus = Path(args.corpus)
     cases_path = Path(args.cases)
     cases = load_cases(cases_path)
-    server = FakeKnowledgeServer(corpus)
+    server = FakeKnowledgeGraph(corpus)
     mode = server.mode
     # Separate mode value per transport, so a baseline from one seam can never be
     # compared against another. Different seam, different measurement.
@@ -364,17 +361,15 @@ def main() -> int:
             print(f"{r['id']}  -> {r['verdict']}")
             print("=" * 78)
             print(f"query   : {tr['query']}")
-            print(f"caller  : {tr['caller']}")
-            print(f"filters : {tr['filters']}")
+            print(f"domain  : {tr['domain']}")
             print(f"\nemitted tool call ({tr['calls']} call(s) total):")
             print(json.dumps(tr["tool_call"], indent=2))
             print("\nbackend returned:")
             if not tr["results"]:
                 print("  (nothing)")
             for i, row in enumerate(tr["results"], 1):
-                print(f"  {i}. {row['note']}@{row['v']}  score={row['score']}  "
-                      f"{row['veracity']:<9} {row['title']}")
-            print(f"  facets: {tr['facets']}")
+                print(f"  {i}. {row['entity']}  score={row['score']}  "
+                      f"{row['matched_by']:<9} {row['title']}")
             print("\nrendered for the agent:")
             for line in tr["rendered"].rstrip().splitlines():
                 print(f"  | {line}")

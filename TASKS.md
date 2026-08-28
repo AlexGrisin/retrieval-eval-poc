@@ -32,8 +32,9 @@ drills remain a separate delivery story.
 | --- | --- | --- | --- |
 | 1 | Create the GitHub repository and configure ownership | Todo; local Git repository exists, but no remote is configured | — |
 | 2 | Create and approve the evaluation approach document | Todo; material exists across the current documentation but is not consolidated | — |
-| 3 | Define and approve the retrieval request, caller identity, and response contracts | Draft; blocking questions remain | 2 |
-| 4 | Create and review an exploratory retrieval reference set | POC shape proven; six synthetic cases exist, labels are not reviewed | 2, 3 |
+| 3 | Define and approve the retrieval request, caller identity, and response contracts | Approved contract landed (`mcp-tool-contracts-reference.md`): `kb_search`/`kb_fetch`/`kb_related` over a property-graph knowledge base. Harness migrated for `kb_search` only (see `KB-SEARCH-MIGRATION-PLAN.md`); `kb_fetch`/`kb_related` are a follow-up task | 2 |
+| 3b | Migrate the harness to `kb_fetch` and `kb_related` | Todo; needs `found:false`-is-not-an-error semantics (kb_fetch) and depth/direction graph traversal + the "Five Canonical Questions" end-to-end recipes (kb_related). Fixture already carries `relationships` for this | 3 |
+| 4 | Create and review an exploratory retrieval reference set | POC shape proven; six synthetic cases exist (now against the `kb_search`/paastry domain), labels are not reviewed | 2, 3 |
 | 5 | Build the runner, deterministic validators, and ranking metrics | Done for POC | 2, 3, 4 |
 | 6 | Set up evaluation version tracking and compatible baseline comparison | Done; versioned manifests, declared target changes, strict compatibility, and synthetic proof are implemented | 5 |
 | 7 | Connect to the real knowledge server and record the first real baseline | Waiting on the server and approved contracts | 3, 6 |

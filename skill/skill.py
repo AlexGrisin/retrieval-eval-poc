@@ -1,13 +1,12 @@
-"""The retrieval skill itself.
+"""The kb_search skill itself.
 
-Three responsibilities, in order, and nothing else:
-  1. Turn caller context + filters into a valid request (closed filter vocabulary).
+Two responsibilities, in order, and nothing else:
+  1. Turn a domain + query into a valid request.
   2. Invoke the knowledge server as one MCP tool call.
-  3. Format the response per the output contract.
 
 Explicitly NOT responsible for: enforcing access control, re-ranking, caching,
-or filtering results after they arrive. All enforcement is server-side; a client
-that post-filters is a client that can be bypassed.
+or filtering results after they arrive. All enforcement is server-side; a
+client that post-filters is a client that can be bypassed.
 """
 
 from __future__ import annotations
@@ -15,46 +14,34 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .client import KnowledgeClient
-from .contracts import Filters, RetrieveRequest, RetrieveResponse, Scope
+from .contracts import SearchRequest, SearchResponse
 from .formatter import render
 
 
 @dataclass
-class RetrievalResult:
+class SearchResult:
     rendered: str
-    response: RetrieveResponse
-    request: RetrieveRequest
+    response: SearchResponse
+    request: SearchRequest
 
 
-class RetrievalSkill:
-    def __init__(
-        self,
-        client: KnowledgeClient,
-        default_k: int = 10,
-        default_format: str = "full",
-    ) -> None:
+class SearchSkill:
+    def __init__(self, client: KnowledgeClient, default_limit: int = 10) -> None:
         self._client = client
-        self._default_k = default_k
-        self._default_format = default_format
+        self._default_limit = default_limit
 
-    def retrieve(
+    def search(
         self,
+        domain: str,
         query: str,
-        context: dict,
-        filters: dict | None = None,
-        k: int | None = None,
-        output_format: str | None = None,
-    ) -> RetrievalResult:
-        request = RetrieveRequest(
+        limit: int | None = None,
+    ) -> SearchResult:
+        request = SearchRequest(
+            domain=domain,
             query=query,
-            scope=Scope(
-                department=context["department"], product=context.get("product")
-            ),
-            filters=Filters.from_dict(filters),
-            k=k or self._default_k,
-            format=output_format or self._default_format,
+            limit=limit or self._default_limit,
         )
-        response = self._client.retrieve(request)
-        return RetrievalResult(
+        response = self._client.search(request)
+        return SearchResult(
             rendered=render(request, response), response=response, request=request
         )

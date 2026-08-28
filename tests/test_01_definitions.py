@@ -49,10 +49,10 @@ def test_committed_case_is_valid(case):
 @framework_id("suite:definition:case_inventory_complete")
 def test_case_inventory_is_complete():
     assert {case["id"] for case in CASES} == {
-        "case-001-retries-ranking",
+        "case-001-rounding-fix-ranking",
         "case-002-superseded-knowledge",
-        "case-003-scope-isolation",
-        "case-004-unknown-filter-rejected",
+        "case-003-domain-isolation",
+        "case-004-malformed-argument-rejected",
         "case-005-response-contract",
         "case-006-blank-query-rejected",
     }
@@ -66,23 +66,38 @@ def test_filename_derived_metadata_is_not_authored():
         "title": "Redundant metadata",
         "why": "The filename and declared expectations already provide it.",
         "query": "question",
-        "caller": {"department": "commerce"},
+        "domain": "paastry",
     }
 
     with pytest.raises(CaseSpecError, match="unknown key.*id.*kind"):
         validate_case(case)
 
 
-@framework_id("synthetic:definition:unused_caller_field_rejected")
-def test_unused_caller_field_is_rejected():
+@framework_id("synthetic:definition:incomplete_relevance_label_rejected")
+def test_incomplete_relevance_label_is_rejected():
     case = {
-        "title": "Unsupported caller field",
-        "why": "Unused caller metadata must not imply identity coverage.",
+        "title": "Incomplete relevance label",
+        "why": "A grade-less relevance label must not silently count as ungraded.",
         "query": "question",
-        "caller": {"department": "commerce", "principal": "sdlc"},
+        "domain": "paastry",
+        "expect": {"relevant": [{"entity": "Story/PAAS-201"}]},
     }
 
-    with pytest.raises(CaseSpecError, match="caller has unknown key.*principal"):
+    with pytest.raises(CaseSpecError, match="missing required key.*grade"):
+        validate_case(case)
+
+
+@framework_id("synthetic:definition:malformed_entity_identity_rejected")
+def test_malformed_entity_identity_is_rejected():
+    case = {
+        "title": "Malformed entity identity",
+        "why": "An identity without Label/key shape must fail before execution.",
+        "query": "question",
+        "domain": "paastry",
+        "expect": {"relevant": [{"entity": "PAAS-201", "grade": 2}]},
+    }
+
+    with pytest.raises(CaseSpecError, match="must look like Label/key"):
         validate_case(case)
 
 
@@ -92,7 +107,7 @@ def test_unknown_expectation_is_rejected():
         "title": "Unknown expectation key",
         "why": "A typo must not silently reduce coverage.",
         "query": "question",
-        "caller": {"department": "commerce"},
+        "domain": "paastry",
         "expect": {"every_result_has_note_reference": True},
     }
 
@@ -135,7 +150,7 @@ def test_answer_correctness_requires_a_reference_answer():
         "title": "Missing reference answer",
         "why": "Answer correctness needs an explicit comparison target.",
         "query": "question",
-        "caller": {"department": "commerce"},
+        "domain": "paastry",
         "answer_evaluation": {"rubrics": ["answer_correctness"]},
     }
 

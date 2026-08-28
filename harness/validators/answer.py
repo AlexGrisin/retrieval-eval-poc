@@ -27,14 +27,14 @@ def check_citations_were_retrieved(
     response: AgentResponse, retrieval_result: dict
 ) -> str | None:
     retrieved = {
-        f"{result['note']}@{result['v']}"
+        result["entity"]
         for result in retrieval_result.get("trace", {}).get("results", [])
     }
     unavailable = sorted(
         citation.ref for citation in response.citations if citation.ref not in retrieved
     )
     if unavailable:
-        return f"answer cites note versions that were not retrieved: {unavailable}"
+        return f"answer cites entities that were not retrieved: {unavailable}"
     return None
 
 

@@ -1,10 +1,19 @@
 # Evaluation architecture
 
+> **Migration note**: this document was rewritten for the `kb_search` contract
+> (see `KB-SEARCH-MIGRATION-PLAN.md` and `mcp-tool-contracts-reference.md`) through
+> §3 "Retrieval output". §§4-9 below still describe the retired `knowledge_retrieve`
+> contract (notes, veracity, scope) pending a follow-up documentation pass — tracked
+> in `docs/ASSUMPTIONS.md`. The code itself (schemas, validators, runner, cases) is
+> fully migrated and verified; only this narrative's tail sections are stale.
+
 ## Scope of the current POC
 
 The current system evaluates a **retrieval skill**, not a complete answer-generating
-agent. A retrieval execution returns ranked notes, facets, and agent-visible rendered
-context. It does not return a natural-language answer to the user's question.
+agent. A `kb_search` execution returns ranked entities (property-graph nodes
+addressed by `label/key`) and agent-visible rendered context. It does not return a
+natural-language answer to the user's question, and it does not yet implement
+`kb_fetch` or `kb_related` (see `KB-SEARCH-MIGRATION-PLAN.md`).
 
 Generated-answer expectations and selected judge rubrics live in the same case under
 `answer_evaluation`. The POC loads the captured response from
@@ -138,14 +147,12 @@ supported case field, value, default, and applicability rule.
 | Case data | Purpose | Sent to the retrieval skill or server? |
 | --- | --- | --- |
 | `query` | User's retrieval question | Yes |
-| `caller.department`, `caller.product` | Retrieval scope | Yes, as `scope` |
-| `filters` | Domain, veracity, validity, and memory-type constraints | Yes |
-| `k` | Maximum number of results | Yes |
-| `format` | `brief`, `full`, or `citations_only` | Yes |
+| `domain` | The one domain the call is scoped to | Yes |
+| `limit` | Maximum number of results | Yes |
 | `expect_tool_call` | Optional exact request override | No; validator input only |
-| `expect.relevant` | Graded retrieval reference labels | No; metric input only |
-| `expect.must_not_return` | Forbidden note IDs | No; validator input only |
-| `expect.expected_first_result` | Required first note | No; validator input only |
+| `expect.relevant` | Graded retrieval reference labels (`Label/key` entity identities) | No; metric input only |
+| `expect.must_not_return` | Forbidden entity identities | No; validator input only |
+| `expect.expected_first_result` | Required first entity | No; validator input only |
 | `answer_evaluation.expect` | Exact status and citation expectations for the final answer | No; answer-validator input only |
 | `answer_evaluation.rubrics` | Semantic criteria selected for this case | No; judge routing only |
 | `answer_evaluation.reference_answer` | Optional reviewed comparison answer | No; judge input only |
@@ -158,23 +165,15 @@ the approved request schema defines that representation.
 
 ## 2. Request construction and schema enforcement
 
-`RetrievalSkill` turns case input into this transport-neutral request:
+`SearchSkill` turns case input into this transport-neutral request:
 
 ```json
 {
-  "tool": "knowledge_retrieve",
+  "tool": "kb_search",
   "args": {
-    "query": "how do we handle retries on payment failures?",
-    "scope": {
-      "department": "commerce",
-      "product": "shop"
-    },
-    "filters": {
-      "veracity": ["verified"],
-      "validity": "current"
-    },
-    "k": 10,
-    "format": "full"
+    "domain": "paastry",
+    "query": "why was the pricing rounding bug fixed?",
+    "limit": 10
   }
 }
 ```
@@ -187,7 +186,7 @@ There are two representations of the retrieval contract:
 
 | Boundary | Contract | Responsibility |
 | --- | --- | --- |
-| Skill internals | Dataclasses in `skill/contracts.py` | Validate nonblank query, positive `k`, allowed format, and the closed filter vocabulary; build the exact tool call |
+| Skill internals | Dataclasses in `skill/contracts.py` | Validate nonblank domain/query, positive `limit`; build the exact tool call |
 | MCP and REST wire | Pydantic models in `skill/schemas.py` | Publish one shared request/response shape, reject extra fields, and enforce wire field types |
 
 Execution mode determines where the request crosses a schema boundary:
@@ -200,7 +199,10 @@ Execution mode determines where the request crosses a schema boundary:
 MCP and REST both import `skill/schemas.py`; they do not maintain independent copies
 of the contract. A case with `probe_invalid_request` bypasses the skill and sends its
 malformed request directly to one of these protocol boundaries. This proves rejection
-by the server-facing contract rather than only by trusted client code.
+by the server-facing contract rather than only by trusted client code. `kb_search` has
+no nested request object (unlike the retired `filters`), so the enforceable probe
+surface is per-argument type checking, not unknown-key rejection -- see
+`harness/validators/contract.py::check_server_rejects_invalid_request`.
 
 ## 3. Retrieval output and captured execution record
 
@@ -210,48 +212,40 @@ The server response has this wire shape:
 {
   "results": [
     {
-      "note_id": "n-0001",
-      "version": 3,
-      "title": "Idempotency guarantees in the settlement path",
-      "claim": "Settlement writes are idempotent...",
-      "veracity": "verified",
-      "valid_to": "2026-12-31",
-      "source_system": "github",
-      "source_locator": "acme/payments#docs/settlement.md",
-      "source_version": "a1b2c3d",
-      "score": 0.82
+      "entity": {"label": "Story", "key": "PAAS-201"},
+      "title": "Fix pricing rounding error for tiered discounts",
+      "snippet": "Customers on tiered discount plans were undercharged...",
+      "score": 0.24,
+      "matched_by": "fulltext",
+      "citations": [{"source_system": "jira", "reference": "PAAS-201"}]
     }
-  ],
-  "facets": {
-    "product": {"shop": 1},
-    "veracity": {"verified": 1}
-  }
+  ]
 }
 ```
 
-`RetrieveResponseOut` requires `results` and `facets`. Every result must contain the
-note identity and version, claim, veracity, validity, original-source provenance, and
-retrieval score. Extra output fields are rejected at MCP and REST boundaries.
+`SearchResponseOut` requires `results`. Every result must contain the entity identity
+(`label` + `key`), title, snippet, score, `matched_by`, and its citations. Extra output
+fields are rejected at MCP and REST boundaries.
 
 The skill decodes the response into the transport-independent objects in
 `skill/contracts.py`, then `skill/formatter.py` derives human-readable `rendered`
 context. The rendered value is what a future answer-generating agent would consume:
 
 ```text
-### Knowledge — 3 notes · scope commerce/shop
-1. Payment failure taxonomy [verified]
-   > "Payment failures are classified..."
-   note n-0002@1 · source confluence:PAY-4412@7
+### Knowledge — 1 entity · domain paastry
+1. Fix pricing rounding error for tiered discounts   [Story/PAAS-201 · fulltext]
+   > "Customers on tiered discount plans were undercharged..."
+   citations: jira:PAAS-201
 ```
 
 It is **retrieved context, not the final answer**.
 
 The runner captures an evaluation record containing:
 
-- ranked note IDs;
-- the structured results and facets;
+- ranked entity identities (`Label/key`);
+- the structured results;
 - the rendered context;
-- the original query, caller, and filters;
+- the original query and domain;
 - the exact emitted tool call and call count;
 - every validator outcome and its traceability source;
 - ranking metrics where relevance labels exist;

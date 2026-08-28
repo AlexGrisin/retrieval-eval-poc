@@ -1,0 +1,9 @@
+status: answered
+answer: >-
+  Story PAAS-201 tracked a rounding error in the tiered discount calculation that
+  undercharged customers. Commit a1f9c2d, implementing that story, corrected the
+  rounding behaviour.
+citations:
+  - {label: Story, key: PAAS-201}
+  - {label: Commit, key: github.com/paastry/svc-pricing-api@a1f9c2d}
+  - {label: DocChunk, key: pricing-rounding-design-doc}

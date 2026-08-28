@@ -7,8 +7,6 @@ why: >-
   unratified debuggability niceties with no requirement behind them; see
   harness/validators/registry.py.
 
-query: how do we handle retries on payment failures?
-caller: {department: commerce, product: shop}
-filters: {veracity: [verified], validity: current}
-k: 10
-format: full
+query: why was the pricing rounding bug fixed?
+domain: paastry
+limit: 10
