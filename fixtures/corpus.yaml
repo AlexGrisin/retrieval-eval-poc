@@ -1,0 +1,120 @@
+# Fixture corpus: frozen, hand-built, ~9 notes. Never grows organically.
+# Bump `version` on any edit. The run manifest also hashes the complete file, so a
+# score change cannot be compared without detecting the corpus change.
+version: fixture-2026-08-20.1
+
+notes:
+  - note_id: n-0001
+    version: 3
+    title: Idempotency guarantees in the settlement path
+    claim: >-
+      Settlement writes are idempotent per payment intent, so retries after payment
+      failures must reuse the original idempotency key instead of generating a new one.
+    department: commerce
+    product: shop
+    memory_type: decision
+    veracity: verified
+    valid_to: "2026-12-31"
+    aliases: [Payments Service, payments-svc, PAYSVC]
+    supersedes: [n-0004]
+    source: {system: github, locator: acme/payments#docs/settlement.md, version: a1b2c3d}
+
+  - note_id: n-0002
+    version: 1
+    title: Payment failure taxonomy
+    claim: >-
+      Payment failures are classified terminal, retryable, or ambiguous; only
+      retryable failures may be retried.
+    department: commerce
+    product: shop
+    memory_type: reference
+    veracity: verified
+    valid_to: null
+    source: {system: confluence, locator: "PAY-4412", version: "7"}
+
+  - note_id: n-0003
+    version: 2
+    title: Retry budgets for downstream calls
+    claim: >-
+      Each downstream call carries a retry budget; exhausting it surfaces terminal
+      failures rather than further retries.
+    department: commerce
+    product: shop
+    memory_type: standard
+    veracity: verified
+    valid_to: null
+    source: {system: github, locator: acme/platform#docs/resilience.md, version: 9f8e7d6}
+
+  # Superseded by n-0001. Must never be served as current -- case 002.
+  - note_id: n-0004
+    version: 1
+    title: Retry handling in the settlement path
+    claim: >-
+      Settlement retries payment failures up to three times with fixed backoff.
+    department: commerce
+    product: shop
+    memory_type: decision
+    veracity: verified
+    valid_to: "2025-06-30"
+    source: {system: github, locator: acme/payments#docs/settlement.md, version: 4d5e6f7}
+
+  - note_id: n-0005
+    version: 1
+    title: Inventory reorder point calculation
+    claim: >-
+      Reorder point equals lead-time demand plus safety stock, recomputed nightly.
+    department: supply-chain
+    product: inventory-planning
+    memory_type: standard
+    veracity: verified
+    valid_to: null
+    source: {system: confluence, locator: "SC-1180", version: "3"}
+
+  - note_id: n-0006
+    version: 1
+    title: Circuit breaker thresholds for PAYSVC
+    claim: >-
+      PAYSVC opens its circuit after fifty consecutive errors in a rolling minute.
+    department: commerce
+    product: shop
+    memory_type: standard
+    veracity: verified
+    valid_to: null
+    aliases: [PAYSVC, payments-svc, Payments Service]
+    source: {system: github, locator: acme/payments#ops/breaker.yaml, version: c3d4e5f}
+
+  # Homonym pair with n-0008: "order" means different things per department.
+  - note_id: n-0007
+    version: 1
+    title: Order lifecycle states
+    claim: Orders move through created, paid, picked, shipped, closed.
+    department: commerce
+    product: fulfilment
+    memory_type: reference
+    veracity: verified
+    valid_to: null
+    source: {system: jira, locator: "FUL-902", version: "2026-03-11T09:12:00Z"}
+
+  - note_id: n-0008
+    version: 1
+    title: Revenue recognition timing for orders
+    claim: Order revenue is recognised on shipment confirmation, not on payment capture.
+    department: finance
+    product: ledger
+    memory_type: standard
+    veracity: verified
+    valid_to: null
+    source: {system: confluence, locator: "FIN-77", version: "12"}
+
+  # Machine-extracted, never individually reviewed. Answers the retries query
+  # well, which is exactly why it is the veracity trap in cases 001 and 003.
+  - note_id: n-0009
+    version: 1
+    title: Settlement retry ceiling is five attempts
+    claim: Settlement stops after five retries for payment failures.
+    department: commerce
+    product: shop
+    memory_type: observation
+    veracity: derived
+    valid_to: null
+    source: {system: github, locator: acme/payments#src/settle.py, version: b2c3d4e}

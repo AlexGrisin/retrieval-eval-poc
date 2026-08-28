@@ -1,0 +1,8 @@
+status: answered
+answer: >-
+  Only retryable failures may be retried. Reuse the original idempotency key and stop
+  when the downstream retry budget is exhausted.
+citations:
+  - {note_id: n-0001, version: 3}
+  - {note_id: n-0002, version: 1}
+  - {note_id: n-0003, version: 2}

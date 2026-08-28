@@ -1,0 +1,43 @@
+{
+  "description": "Evaluation harness for the Context Engineering retrieval skill: pytest-based POC that sends versioned test cases through a knowledge-retrieval skill, validates deterministic contracts, and scores results with IR metrics and an optional LLM judge.",
+  "servicesDescription": {
+    "harness": "Test harness: agent/skill runner, MCP and REST transports, deterministic validators, ranking metrics, LLM-judge runner",
+    "skill": "The knowledge-retrieval skill under evaluation"
+  },
+  "codingAgents": [
+    "claude-code"
+  ],
+  "sdlc": {
+    "issue_tracker": "[ISSUE_TRACKER - e.g. Jira, GitHub Issues, Linear]",
+    "issue_tracker_project": "[ISSUE_TRACKER_URL]",
+    "wiki": "Confluence",
+    "wiki_project": "[WIKI_URL - confluence/*.md are static exported snapshots, not live-synced]",
+    "test_management": "[TEST_MANAGEMENT_PROJECT - project key or URL]",
+    "scm": "[SCM - no git remote configured; local-only repo as of this run]",
+    "scm_project": "[SCM_URL]",
+    "build_management": "[BUILD_MANAGEMENT - no CI config detected in repo]",
+    "build_management_project": "[BUILD_MANAGEMENT_URL]",
+    "infrastructure": "[INFRASTRUCTURE_PROJECT]",
+    "iac": "[IAC_TOOL]",
+    "hosting": "[HOSTING]",
+    "monitoring": "[MONITORING]",
+    "logging": "[LOGGING]",
+    "security": "[SECURITY_TOOL]",
+    "collaboration_project": "[COLLABORATION_PROJECT]",
+    "unit_tests": "in-repository (tests/, pytest)",
+    "integration_tests": "in-repository (harness/ drives MCP/REST transports)",
+    "e2e_tests": "in-repository (cases/*.yaml end-to-end through skill)",
+    "performance_tests": "[PERFORMANCE_TESTS_LOCATION - omit if none]",
+    "testing_harness": "pytest + harness/ (agent runner, transports, validators, ranking metrics)",
+    "code_graph": "[CODE_GRAPH_TOOL - not in use]"
+  },
+  "vocabulary": {
+    "case": "A versioned test input (cases/case-NNN-*.yaml): an ordered sequence of fields that activate applicable checks",
+    "corpus": "Controlled knowledge fixture (fixtures/corpus.yaml) used by the deterministic fake retrieval backend",
+    "rubric": "LLM-judge scoring criteria (rubrics/*.yaml) for generated-answer evaluation",
+    "run manifest": "Versioned record of an evaluation run used for strict baseline compatibility checks (see run-results/, baselines/)"
+  },
+  "versions": {
+    "rosetta": "3.0.3"
+  }
+}

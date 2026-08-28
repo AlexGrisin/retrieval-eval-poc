@@ -1,0 +1,29 @@
+# Environments and caches
+.venv/
+.env
+.env.local
+.env.*.local
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Scratch corpora from sabotage drills. Keep these out of the repo: a mutated
+# corpus that looks like a fixture is worse than no fixture.
+*poisoned*.yaml
+scratch/
+
+# Per-run output, once the runner writes it. NOT baselines/ -- see below.
+run-results/
+allure-results/
+allure-report/
+
+# Committed on purpose, listed here so nobody "tidies" them away:
+#   baselines/        the reference scoreboard; the regression gate compares to it
+#   cases/            the answer key, reviewed like knowledge
+#   fixtures/         the frozen corpus and its version
+
+# Rosetta
+agents/TEMP/
+refsrc/
+!refsrc/INDEX.md

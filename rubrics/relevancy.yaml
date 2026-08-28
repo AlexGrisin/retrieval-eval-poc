@@ -1,0 +1,33 @@
+# LLM-as-judge. Does the answer address the question actually asked, as
+# distinct from merely being grounded in something retrieved?
+#
+# Scores a generated answer against the question, by a judge.
+# Case `expect.relevant` labels score a retrieved note against the question instead --
+# a different axis despite the similar name.
+
+name: relevancy
+display_name: "Answer relevancy"
+type: geval
+scores: the answer, against the question
+description: >-
+  The answer is on topic for the question asked.
+criteria: |
+  Score using these anchored bands:
+    1.0 — Directly answers the question asked.
+    0.5 — Partially on topic: relevant but incomplete or tangential.
+    0.0 — Off topic: answers a different question than the one asked.
+threshold: 0.7
+
+refusal_note: >-
+  A correct refusal with disclosure is ON topic, not off it. "I have no King
+  data, the Queen is 1024, which does not answer your question" scores near the
+  top here, not zero.
+refusal_band:
+  # applies only when the retrieved context genuinely lacks the answer
+  - {behaviour: "refuses and says why", score: near the top}
+  - {behaviour: "refuses although the context did contain the answer", score: mid band}
+  - {behaviour: "answers anyway, or substitutes a different entity", score: zero}
+
+traceability:
+  status: unratified
+  source: "TASKS.md task 7. Standard RAG judging criterion; no Component Guide section names it."

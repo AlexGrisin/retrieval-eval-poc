@@ -1,0 +1,773 @@
+{
+  "manifest": {
+    "schema_version": 1,
+    "compatibility": {
+      "common": {
+        "evaluation_profile": "retrieval-and-agent-read-path",
+        "evaluation_level": "component",
+        "target_interface": "knowledge-server",
+        "environment_class": "controlled-synthetic",
+        "mode": "mock-rest",
+        "transport": "rest",
+        "executions": 1,
+        "corpus_version": "fixture-2026-08-20.1",
+        "corpus_hash": "b54427af50ac8894d55bc0b5fa2a65e0c7fe979e6e102ead8e26ddd853c8bff3",
+        "case_set_hash": "c6a776b6df60bedc3b3e303604152b8b9157b2102993c3202d55a2dcaa3e143d",
+        "contracts_hash": "16948fcd3b720231382ea98acb567885875a2f5fa4f7575203399c058cd7a6a2",
+        "orchestration_hash": "b6dfdf1a6b0cce21cdfaeee672e63386341227fa457da3fba3cab4da3cbee7c9",
+        "dependency_lock_hash": "043da7c09d4f72976c329a65e881317e75e42a439e9789d7bfd9b13f98685888",
+        "python": "3.14.0",
+        "mcp_sdk": "2.0.0",
+        "corpus_snapshot": "fixture-2026-08-20.1:b54427af50ac8894d55bc0b5fa2a65e0c7fe979e6e102ead8e26ddd853c8bff3",
+        "index_schema_version": "fixture-v1",
+        "chunking_version": "not-applicable",
+        "embedding_model": "not-applicable-token-overlap",
+        "embedding_model_version": "not-applicable",
+        "embedding_dimensions": 0,
+        "vocabulary_version": "fixture-v1",
+        "ontology_version": "fixture-v1",
+        "permission_policy_version": "fixture-scope-v1"
+      },
+      "profiles": {
+        "validators": {
+          "validator_implementation_hash": "c87532b8c38564ca288e1b6131078804506d6d936f722532754b4da5f32cebca"
+        },
+        "ranking": {
+          "profile_version": "ranking-v1",
+          "metric_implementation_hash": "a4584f2f3c63ec863aa368a6841054f3af45ea6c5757d15c84e9b853afdf18cf",
+          "metrics": [
+            "recall@k",
+            "precision@5",
+            "mrr",
+            "ndcg@k"
+          ],
+          "regression_policy": "absolute-drop-v1",
+          "absolute_drop_tolerance": 0.02
+        }
+      }
+    },
+    "target": {
+      "knowledge_server_version": "1736b47c11c5663747816eb97a72ee480284aec76ca7419cc90c705453351a4a",
+      "retrieval_skill_version": "7f49532dd6699aca6915e2bc6187dbd9dedb22a8419071b9cea760592f30db0e",
+      "graph_vector_store": "fixture-memory",
+      "graph_vector_store_version": "fixture-v1",
+      "index_build_id": "b54427af50ac8894d55bc0b5fa2a65e0c7fe979e6e102ead8e26ddd853c8bff3",
+      "retrieval_configuration_version": "token-overlap-v1"
+    },
+    "comparison": {
+      "change_under_test": []
+    },
+    "run": {
+      "run_at": "2026-08-28T09:13:11+00:00"
+    }
+  },
+  "cases": [
+    {
+      "id": "case-001-retries-ranking",
+      "executions": 1,
+      "verdict": "PASS",
+      "ranked": [
+        "n-0002",
+        "n-0001",
+        "n-0003"
+      ],
+      "checks": [
+        {
+          "name": "contract:emitted_tool_call",
+          "status": "ok",
+          "detail": "",
+          "traceability": "traced",
+          "source": "task statement: 'defining request context and filters'"
+        },
+        {
+          "name": "contract:response_contract_valid",
+          "status": "ok",
+          "detail": "",
+          "traceability": "traced",
+          "source": "Component Guide 4.3 and 11, the response contract carries versioned provenance and facets"
+        },
+        {
+          "name": "retrieval:must_not_return",
+          "status": "ok",
+          "detail": "",
+          "traceability": "traced",
+          "source": "Component Guide 4.4 veracity tiers, 8.2 supersedes chains, 5.4 query-time access control"
+        },
+        {
+          "name": "format:every_result_has_provenance",
+          "status": "ok",
+          "detail": "",
+          "traceability": "traced",
+          "source": "Component Guide 4.3 and 11, provenance is pinned and carried forward"
+        }
+      ],
+      "trace": {
+        "query": "how do we handle retries on payment failures?",
+        "caller": {
+          "department": "commerce",
+          "product": "shop"
+        },
+        "filters": {
+          "veracity": [
+            "verified"
+          ],
+          "validity": "current"
+        },
+        "tool_call": {
+          "tool": "knowledge_retrieve",
+          "args": {
+            "query": "how do we handle retries on payment failures?",
+            "scope": {
+              "department": "commerce",
+              "product": "shop"
+            },
+            "filters": {
+              "validity": "current",
+              "veracity": [
+                "verified"
+              ]
+            },
+            "k": 10,
+            "format": "full"
+          }
+        },
+        "calls": 1,
+        "results": [
+          {
+            "note": "n-0002",
+            "v": 1,
+            "score": 0.301511,
+            "veracity": "verified",
+            "title": "Payment failure taxonomy"
+          },
+          {
+            "note": "n-0001",
+            "v": 3,
+            "score": 0.3,
+            "veracity": "verified",
+            "title": "Idempotency guarantees in the settlement path"
+          },
+          {
+            "note": "n-0003",
+            "v": 2,
+            "score": 0.25,
+            "veracity": "verified",
+            "title": "Retry budgets for downstream calls"
+          }
+        ],
+        "facets": {
+          "product": {
+            "shop": 3
+          },
+          "veracity": {
+            "verified": 3
+          }
+        },
+        "rendered": "### Knowledge \u2014 3 notes \u00b7 scope commerce/shop \u00b7 filters validity=current veracity=verified\n1. Payment failure taxonomy   [verified]\n   > \"Payment failures are classified terminal, retryable, or ambiguous; only retryable failures may be retried.\"\n   note n-0002@1 \u00b7 source confluence:PAY-4412@7\n2. Idempotency guarantees in the settlement path   [verified \u00b7 valid to 2026-12-31]\n   > \"Settlement writes are idempotent per payment intent, so retries after payment failures must reuse the original idempotency key instead of generating a new one.\"\n   note n-0001@3 \u00b7 source github:acme/payments#docs/settlement.md@a1b2c3d\n3. Retry budgets for downstream calls   [verified]\n   > \"Each downstream call carries a retry budget; exhausting it surfaces terminal failures rather than further retries.\"\n   note n-0003@2 \u00b7 source github:acme/platform#docs/resilience.md@9f8e7d6\nFacets: product{shop:3} \u00b7 veracity{verified:3}\n"
+      },
+      "metrics": {
+        "recall@10": 1.0,
+        "precision@5": 0.6,
+        "mrr": 1.0,
+        "ndcg@10": 0.8821
+      },
+      "distribution": {
+        "recall@10": {
+          "mean": 1.0,
+          "median": 1.0,
+          "std_dev": 0.0,
+          "min": 1.0,
+          "max": 1.0,
+          "n": 1
+        },
+        "precision@5": {
+          "mean": 0.6,
+          "median": 0.6,
+          "std_dev": 0.0,
+          "min": 0.6,
+          "max": 0.6,
+          "n": 1
+        },
+        "mrr": {
+          "mean": 1.0,
+          "median": 1.0,
+          "std_dev": 0.0,
+          "min": 1.0,
+          "max": 1.0,
+          "n": 1
+        },
+        "ndcg@10": {
+          "mean": 0.8821,
+          "median": 0.8821,
+          "std_dev": 0.0,
+          "min": 0.8821,
+          "max": 0.8821,
+          "n": 1
+        }
+      },
+      "invariant_failures": [],
+      "passed": true
+    },
+    {
+      "id": "case-002-superseded-knowledge",
+      "executions": 1,
+      "verdict": "PASS",
+      "ranked": [
+        "n-0001",
+        "n-0002",
+        "n-0003"
+      ],
+      "checks": [
+        {
+          "name": "contract:emitted_tool_call",
+          "status": "ok",
+          "detail": "",
+          "traceability": "traced",
+          "source": "task statement: 'defining request context and filters'"
+        },
+        {
+          "name": "contract:response_contract_valid",
+          "status": "ok",
+          "detail": "",
+          "traceability": "traced",
+          "source": "Component Guide 4.3 and 11, the response contract carries versioned provenance and facets"
+        },
+        {
+          "name": "retrieval:must_not_return",
+          "status": "ok",
+          "detail": "",
+          "traceability": "traced",
+          "source": "Component Guide 4.4 veracity tiers, 8.2 supersedes chains, 5.4 query-time access control"
+        },
+        {
+          "name": "retrieval:expected_first_result",
+          "status": "ok",
+          "detail": "",
+          "traceability": "traced",
+          "source": "Component Guide 8.2, resolve which version is authoritative"
+        },
+        {
+          "name": "format:every_result_has_provenance",
+          "status": "ok",
+          "detail": "",
+          "traceability": "traced",
+          "source": "Component Guide 4.3 and 11, provenance is pinned and carried forward"
+        }
+      ],
+      "trace": {
+        "query": "how are settlement retries for payment failures handled?",
+        "caller": {
+          "department": "commerce",
+          "product": "shop"
+        },
+        "filters": {
+          "veracity": [
+            "verified"
+          ],
+          "validity": "current"
+        },
+        "tool_call": {
+          "tool": "knowledge_retrieve",
+          "args": {
+            "query": "how are settlement retries for payment failures handled?",
+            "scope": {
+              "department": "commerce",
+              "product": "shop"
+            },
+            "filters": {
+              "validity": "current",
+              "veracity": [
+                "verified"
+              ]
+            },
+            "k": 10,
+            "format": "full"
+          }
+        },
+        "calls": 1,
+        "results": [
+          {
+            "note": "n-0001",
+            "v": 3,
+            "score": 0.357771,
+            "veracity": "verified",
+            "title": "Idempotency guarantees in the settlement path"
+          },
+          {
+            "note": "n-0002",
+            "v": 1,
+            "score": 0.26968,
+            "veracity": "verified",
+            "title": "Payment failure taxonomy"
+          },
+          {
+            "note": "n-0003",
+            "v": 2,
+            "score": 0.223607,
+            "veracity": "verified",
+            "title": "Retry budgets for downstream calls"
+          }
+        ],
+        "facets": {
+          "product": {
+            "shop": 3
+          },
+          "veracity": {
+            "verified": 3
+          }
+        },
+        "rendered": "### Knowledge \u2014 3 notes \u00b7 scope commerce/shop \u00b7 filters validity=current veracity=verified\n1. Idempotency guarantees in the settlement path   [verified \u00b7 valid to 2026-12-31]\n   > \"Settlement writes are idempotent per payment intent, so retries after payment failures must reuse the original idempotency key instead of generating a new one.\"\n   note n-0001@3 \u00b7 source github:acme/payments#docs/settlement.md@a1b2c3d\n2. Payment failure taxonomy   [verified]\n   > \"Payment failures are classified terminal, retryable, or ambiguous; only retryable failures may be retried.\"\n   note n-0002@1 \u00b7 source confluence:PAY-4412@7\n3. Retry budgets for downstream calls   [verified]\n   > \"Each downstream call carries a retry budget; exhausting it surfaces terminal failures rather than further retries.\"\n   note n-0003@2 \u00b7 source github:acme/platform#docs/resilience.md@9f8e7d6\nFacets: product{shop:3} \u00b7 veracity{verified:3}\n"
+      },
+      "metrics": {
+        "recall@10": 1.0,
+        "precision@5": 0.2,
+        "mrr": 1.0,
+        "ndcg@10": 1.0
+      },
+      "distribution": {
+        "recall@10": {
+          "mean": 1.0,
+          "median": 1.0,
+          "std_dev": 0.0,
+          "min": 1.0,
+          "max": 1.0,
+          "n": 1
+        },
+        "precision@5": {
+          "mean": 0.2,
+          "median": 0.2,
+          "std_dev": 0.0,
+          "min": 0.2,
+          "max": 0.2,
+          "n": 1
+        },
+        "mrr": {
+          "mean": 1.0,
+          "median": 1.0,
+          "std_dev": 0.0,
+          "min": 1.0,
+          "max": 1.0,
+          "n": 1
+        },
+        "ndcg@10": {
+          "mean": 1.0,
+          "median": 1.0,
+          "std_dev": 0.0,
+          "min": 1.0,
+          "max": 1.0,
+          "n": 1
+        }
+      },
+      "invariant_failures": [],
+      "passed": true
+    },
+    {
+      "id": "case-003-scope-isolation",
+      "executions": 1,
+      "verdict": "PASS",
+      "ranked": [
+        "n-0008"
+      ],
+      "checks": [
+        {
+          "name": "contract:emitted_tool_call",
+          "status": "ok",
+          "detail": "",
+          "traceability": "traced",
+          "source": "task statement: 'defining request context and filters'"
+        },
+        {
+          "name": "contract:response_contract_valid",
+          "status": "ok",
+          "detail": "",
+          "traceability": "traced",
+          "source": "Component Guide 4.3 and 11, the response contract carries versioned provenance and facets"
+        },
+        {
+          "name": "retrieval:must_not_return",
+          "status": "ok",
+          "detail": "",
+          "traceability": "traced",
+          "source": "Component Guide 4.4 veracity tiers, 8.2 supersedes chains, 5.4 query-time access control"
+        },
+        {
+          "name": "format:every_result_has_provenance",
+          "status": "ok",
+          "detail": "",
+          "traceability": "traced",
+          "source": "Component Guide 4.3 and 11, provenance is pinned and carried forward"
+        }
+      ],
+      "trace": {
+        "query": "how do we handle retries on payment failures?",
+        "caller": {
+          "department": "finance"
+        },
+        "filters": {
+          "veracity": [
+            "verified"
+          ],
+          "validity": "current"
+        },
+        "tool_call": {
+          "tool": "knowledge_retrieve",
+          "args": {
+            "query": "how do we handle retries on payment failures?",
+            "scope": {
+              "department": "finance",
+              "product": null
+            },
+            "filters": {
+              "validity": "current",
+              "veracity": [
+                "verified"
+              ]
+            },
+            "k": 10,
+            "format": "full"
+          }
+        },
+        "calls": 1,
+        "results": [
+          {
+            "note": "n-0008",
+            "v": 1,
+            "score": 0.150756,
+            "veracity": "verified",
+            "title": "Revenue recognition timing for orders"
+          }
+        ],
+        "facets": {
+          "product": {
+            "ledger": 1
+          },
+          "veracity": {
+            "verified": 1
+          }
+        },
+        "rendered": "### Knowledge \u2014 1 note \u00b7 scope finance \u00b7 filters validity=current veracity=verified\n1. Revenue recognition timing for orders   [verified]\n   > \"Order revenue is recognised on shipment confirmation, not on payment capture.\"\n   note n-0008@1 \u00b7 source confluence:FIN-77@12\nFacets: product{ledger:1} \u00b7 veracity{verified:1}\n"
+      },
+      "metrics": {},
+      "distribution": {},
+      "invariant_failures": [],
+      "passed": true
+    },
+    {
+      "id": "case-004-unknown-filter-rejected",
+      "executions": 1,
+      "verdict": "PASS",
+      "ranked": [
+        "n-0002",
+        "n-0001",
+        "n-0003"
+      ],
+      "checks": [
+        {
+          "name": "contract:emitted_tool_call",
+          "status": "ok",
+          "detail": "",
+          "traceability": "traced",
+          "source": "task statement: 'defining request context and filters'"
+        },
+        {
+          "name": "contract:response_contract_valid",
+          "status": "ok",
+          "detail": "",
+          "traceability": "traced",
+          "source": "Component Guide 4.3 and 11, the response contract carries versioned provenance and facets"
+        },
+        {
+          "name": "contract:server_rejects_invalid_request",
+          "status": "ok",
+          "detail": "",
+          "traceability": "traced",
+          "source": "Component Guide 5.4 and 11, enforcement is server side, clients are never trusted"
+        },
+        {
+          "name": "format:every_result_has_provenance",
+          "status": "ok",
+          "detail": "",
+          "traceability": "traced",
+          "source": "Component Guide 4.3 and 11, provenance is pinned and carried forward"
+        }
+      ],
+      "trace": {
+        "query": "how do we handle retries on payment failures?",
+        "caller": {
+          "department": "commerce",
+          "product": "shop"
+        },
+        "filters": {
+          "veracity": [
+            "verified"
+          ],
+          "validity": "current"
+        },
+        "tool_call": {
+          "tool": "knowledge_retrieve",
+          "args": {
+            "query": "how do we handle retries on payment failures?",
+            "scope": {
+              "department": "commerce",
+              "product": "shop"
+            },
+            "filters": {
+              "validity": "current",
+              "veracity": [
+                "verified"
+              ]
+            },
+            "k": 10,
+            "format": "full"
+          }
+        },
+        "calls": 1,
+        "results": [
+          {
+            "note": "n-0002",
+            "v": 1,
+            "score": 0.301511,
+            "veracity": "verified",
+            "title": "Payment failure taxonomy"
+          },
+          {
+            "note": "n-0001",
+            "v": 3,
+            "score": 0.3,
+            "veracity": "verified",
+            "title": "Idempotency guarantees in the settlement path"
+          },
+          {
+            "note": "n-0003",
+            "v": 2,
+            "score": 0.25,
+            "veracity": "verified",
+            "title": "Retry budgets for downstream calls"
+          }
+        ],
+        "facets": {
+          "product": {
+            "shop": 3
+          },
+          "veracity": {
+            "verified": 3
+          }
+        },
+        "rendered": "### Knowledge \u2014 3 notes \u00b7 scope commerce/shop \u00b7 filters validity=current veracity=verified\n1. Payment failure taxonomy   [verified]\n   > \"Payment failures are classified terminal, retryable, or ambiguous; only retryable failures may be retried.\"\n   note n-0002@1 \u00b7 source confluence:PAY-4412@7\n2. Idempotency guarantees in the settlement path   [verified \u00b7 valid to 2026-12-31]\n   > \"Settlement writes are idempotent per payment intent, so retries after payment failures must reuse the original idempotency key instead of generating a new one.\"\n   note n-0001@3 \u00b7 source github:acme/payments#docs/settlement.md@a1b2c3d\n3. Retry budgets for downstream calls   [verified]\n   > \"Each downstream call carries a retry budget; exhausting it surfaces terminal failures rather than further retries.\"\n   note n-0003@2 \u00b7 source github:acme/platform#docs/resilience.md@9f8e7d6\nFacets: product{shop:3} \u00b7 veracity{verified:3}\n"
+      },
+      "metrics": {},
+      "distribution": {},
+      "invariant_failures": [],
+      "passed": true
+    },
+    {
+      "id": "case-005-response-contract",
+      "executions": 1,
+      "verdict": "PASS",
+      "ranked": [
+        "n-0002",
+        "n-0001",
+        "n-0003"
+      ],
+      "checks": [
+        {
+          "name": "contract:emitted_tool_call",
+          "status": "ok",
+          "detail": "",
+          "traceability": "traced",
+          "source": "task statement: 'defining request context and filters'"
+        },
+        {
+          "name": "contract:response_contract_valid",
+          "status": "ok",
+          "detail": "",
+          "traceability": "traced",
+          "source": "Component Guide 4.3 and 11, the response contract carries versioned provenance and facets"
+        },
+        {
+          "name": "format:every_result_has_provenance",
+          "status": "ok",
+          "detail": "",
+          "traceability": "traced",
+          "source": "Component Guide 4.3 and 11, provenance is pinned and carried forward"
+        }
+      ],
+      "trace": {
+        "query": "how do we handle retries on payment failures?",
+        "caller": {
+          "department": "commerce",
+          "product": "shop"
+        },
+        "filters": {
+          "veracity": [
+            "verified"
+          ],
+          "validity": "current"
+        },
+        "tool_call": {
+          "tool": "knowledge_retrieve",
+          "args": {
+            "query": "how do we handle retries on payment failures?",
+            "scope": {
+              "department": "commerce",
+              "product": "shop"
+            },
+            "filters": {
+              "validity": "current",
+              "veracity": [
+                "verified"
+              ]
+            },
+            "k": 10,
+            "format": "full"
+          }
+        },
+        "calls": 1,
+        "results": [
+          {
+            "note": "n-0002",
+            "v": 1,
+            "score": 0.301511,
+            "veracity": "verified",
+            "title": "Payment failure taxonomy"
+          },
+          {
+            "note": "n-0001",
+            "v": 3,
+            "score": 0.3,
+            "veracity": "verified",
+            "title": "Idempotency guarantees in the settlement path"
+          },
+          {
+            "note": "n-0003",
+            "v": 2,
+            "score": 0.25,
+            "veracity": "verified",
+            "title": "Retry budgets for downstream calls"
+          }
+        ],
+        "facets": {
+          "product": {
+            "shop": 3
+          },
+          "veracity": {
+            "verified": 3
+          }
+        },
+        "rendered": "### Knowledge \u2014 3 notes \u00b7 scope commerce/shop \u00b7 filters validity=current veracity=verified\n1. Payment failure taxonomy   [verified]\n   > \"Payment failures are classified terminal, retryable, or ambiguous; only retryable failures may be retried.\"\n   note n-0002@1 \u00b7 source confluence:PAY-4412@7\n2. Idempotency guarantees in the settlement path   [verified \u00b7 valid to 2026-12-31]\n   > \"Settlement writes are idempotent per payment intent, so retries after payment failures must reuse the original idempotency key instead of generating a new one.\"\n   note n-0001@3 \u00b7 source github:acme/payments#docs/settlement.md@a1b2c3d\n3. Retry budgets for downstream calls   [verified]\n   > \"Each downstream call carries a retry budget; exhausting it surfaces terminal failures rather than further retries.\"\n   note n-0003@2 \u00b7 source github:acme/platform#docs/resilience.md@9f8e7d6\nFacets: product{shop:3} \u00b7 veracity{verified:3}\n"
+      },
+      "metrics": {},
+      "distribution": {},
+      "invariant_failures": [],
+      "passed": true
+    },
+    {
+      "id": "case-006-blank-query-rejected",
+      "executions": 1,
+      "verdict": "PASS",
+      "ranked": [
+        "n-0002",
+        "n-0001",
+        "n-0003"
+      ],
+      "checks": [
+        {
+          "name": "contract:emitted_tool_call",
+          "status": "ok",
+          "detail": "",
+          "traceability": "traced",
+          "source": "task statement: 'defining request context and filters'"
+        },
+        {
+          "name": "contract:response_contract_valid",
+          "status": "ok",
+          "detail": "",
+          "traceability": "traced",
+          "source": "Component Guide 4.3 and 11, the response contract carries versioned provenance and facets"
+        },
+        {
+          "name": "contract:server_rejects_invalid_request",
+          "status": "ok",
+          "detail": "",
+          "traceability": "traced",
+          "source": "Component Guide 5.4 and 11, enforcement is server side, clients are never trusted"
+        },
+        {
+          "name": "format:every_result_has_provenance",
+          "status": "ok",
+          "detail": "",
+          "traceability": "traced",
+          "source": "Component Guide 4.3 and 11, provenance is pinned and carried forward"
+        }
+      ],
+      "trace": {
+        "query": "how do we handle retries on payment failures?",
+        "caller": {
+          "department": "commerce",
+          "product": "shop"
+        },
+        "filters": {
+          "veracity": [
+            "verified"
+          ],
+          "validity": "current"
+        },
+        "tool_call": {
+          "tool": "knowledge_retrieve",
+          "args": {
+            "query": "how do we handle retries on payment failures?",
+            "scope": {
+              "department": "commerce",
+              "product": "shop"
+            },
+            "filters": {
+              "validity": "current",
+              "veracity": [
+                "verified"
+              ]
+            },
+            "k": 10,
+            "format": "full"
+          }
+        },
+        "calls": 1,
+        "results": [
+          {
+            "note": "n-0002",
+            "v": 1,
+            "score": 0.301511,
+            "veracity": "verified",
+            "title": "Payment failure taxonomy"
+          },
+          {
+            "note": "n-0001",
+            "v": 3,
+            "score": 0.3,
+            "veracity": "verified",
+            "title": "Idempotency guarantees in the settlement path"
+          },
+          {
+            "note": "n-0003",
+            "v": 2,
+            "score": 0.25,
+            "veracity": "verified",
+            "title": "Retry budgets for downstream calls"
+          }
+        ],
+        "facets": {
+          "product": {
+            "shop": 3
+          },
+          "veracity": {
+            "verified": 3
+          }
+        },
+        "rendered": "### Knowledge \u2014 3 notes \u00b7 scope commerce/shop \u00b7 filters validity=current veracity=verified\n1. Payment failure taxonomy   [verified]\n   > \"Payment failures are classified terminal, retryable, or ambiguous; only retryable failures may be retried.\"\n   note n-0002@1 \u00b7 source confluence:PAY-4412@7\n2. Idempotency guarantees in the settlement path   [verified \u00b7 valid to 2026-12-31]\n   > \"Settlement writes are idempotent per payment intent, so retries after payment failures must reuse the original idempotency key instead of generating a new one.\"\n   note n-0001@3 \u00b7 source github:acme/payments#docs/settlement.md@a1b2c3d\n3. Retry budgets for downstream calls   [verified]\n   > \"Each downstream call carries a retry budget; exhausting it surfaces terminal failures rather than further retries.\"\n   note n-0003@2 \u00b7 source github:acme/platform#docs/resilience.md@9f8e7d6\nFacets: product{shop:3} \u00b7 veracity{verified:3}\n"
+      },
+      "metrics": {},
+      "distribution": {},
+      "invariant_failures": [],
+      "passed": true
+    }
+  ]
+}

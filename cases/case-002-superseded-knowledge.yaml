@@ -1,0 +1,17 @@
+title: Superseded knowledge is never served as current
+why: >-
+  n-0004 is a better lexical match for this query than n-0001 -- it literally says
+  "retries payment failures". A similarity-only system returns it first. Getting this
+  wrong means an agent implements a decision that was reversed, and nothing warns it.
+
+query: how are settlement retries for payment failures handled?
+caller: {department: commerce, product: shop}
+filters: {veracity: [verified], validity: current}
+k: 10
+format: full
+
+expect:
+  expected_first_result: n-0001  # the supersedes chain must resolve here
+  must_not_return: [n-0004]
+  relevant:
+    - {note: n-0001, version: 3, grade: 2}

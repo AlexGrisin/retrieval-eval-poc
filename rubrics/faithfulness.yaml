@@ -1,0 +1,20 @@
+# LLM-as-judge. Detects hallucination: does the answer claim things the
+# retrieved context does not support?
+
+name: faithfulness
+display_name: "Faithfulness"
+type: geval
+scores: the answer, against the retrieved context
+description: >-
+  Every claim in the answer is traceable to a retrieved note.
+criteria: |
+  Score using these anchored bands:
+    1.0 — Fully grounded: every claim is supported; no fabrication.
+    0.7 — Mostly grounded: minor unsupported detail that does not mislead.
+    0.4 — Partly grounded: notable unsupported claims mixed with supported ones.
+    0.0 — Fabricated: invented facts, invented references, confident misinformation.
+threshold: 0.8
+
+traceability:
+  status: unratified
+  source: "TASKS.md task 7. Standard RAG judging criterion; no Component Guide section names it."

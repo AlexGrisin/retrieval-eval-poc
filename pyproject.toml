@@ -1,0 +1,69 @@
+[project]
+name = "retrieval-eval"
+version = "0.1.0"
+description = "Evaluation harness for the Context Engineering retrieval skill"
+requires-python = ">=3.12"
+dependencies = [
+    "pyyaml>=6",
+    "pydantic>=2",
+    # Loads local live-judge settings from an ignored .env file. Project-local values
+    # are authoritative when the file exists; CI without that file uses its environment.
+    "python-dotenv>=1,<2",
+    # TREC-tested ranking metrics and paired statistical comparisons. Keep the
+    # LLM judge rubrics separate under rubrics/*.yaml.
+    "ranx>=0.3.21,<0.4",
+    # Only needed to run the skill over a real MCP boundary. Imported lazily so
+    # in-process ranking runs do not load the SDK.
+    #
+    # The official SDK rather than standalone fastmcp: the latter pulls
+    # joserfc -> cryptography for auth we do not use, which fails to build here
+    # because the Intel uv selects an x86_64 interpreter on an arm64 host.
+    "mcp>=1.2",
+    # Needed for --transport rest: fastapi for the server-side schema, httpx for
+    # RESTKnowledgeClient. httpx is required even for in-process test runs, since
+    # ASGITransport (no socket bound) is still an httpx feature. uvicorn is NOT
+    # listed here -- it is only imported inside server_rest.py's main(), needed
+    # only to actually bind a port for standalone serving, never by the test suite.
+    "fastapi>=0.110",
+    "httpx>=0.27",
+]
+
+[tool.uv]
+package = false
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pytest-xdist>=3",
+    # Renders the case:level:check hierarchy as Allure suites/sub-suites/stories,
+    # with the retrieval trace, ranking metrics, and judge verdicts attached per
+    # test. Pure reporting; adds no assertions and never gates a run.
+    #
+    # Pinned to the 2.13 line to match the local `allure` commandline (2.13.8):
+    # allure-pytest 2.16 emits a `titlePath` result field the 2.13 commandline's
+    # older report-model parser rejects, silently dropping every result from the
+    # generated report. If the commandline is upgraded, this pin can move too --
+    # check `allure --version` against https://github.com/allure-framework/allure2
+    # release notes before bumping.
+    "allure-pytest==2.13.5",
+]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = ["--strict-config", "--strict-markers"]
+markers = [
+    "traced: check is backed by an approved requirement",
+    "inferred: check follows from implementation intent but is not yet approved",
+    "unratified: check or contract still requires approval",
+    "boundary: check requires a protocol boundary",
+    "untraceable: check has no traceable source and must fail framework validation",
+    "judge: evaluation calls the configured live LLM judge",
+    "framework: verifies the harness and committed synthetic assets only",
+    "evaluation: evaluates a declared case against the selected target",
+    "case_check(case_id, level): public metadata used to order case evaluation stages",
+]
+# No retry-on-failure plugins by design: a case that passes three times in five
+# is the finding, not something to rerun away. Flakiness lives in the harness CLI
+# runner as its FLAKY verdict under that runner's -n option.

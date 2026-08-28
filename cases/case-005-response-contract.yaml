@@ -1,0 +1,14 @@
+title: Output formatting is defined and consistent
+why: >-
+  "Consistent formatting" only means something if it is asserted. These structural
+  invariants are what a downstream agent depends on; the exact prose can change,
+  the structure cannot. Trimmed to the checks with a real correctness or security
+  stake for the initial build -- header/order/empty-rendering checks were cut as
+  unratified debuggability niceties with no requirement behind them; see
+  harness/validators/registry.py.
+
+query: how do we handle retries on payment failures?
+caller: {department: commerce, product: shop}
+filters: {veracity: [verified], validity: current}
+k: 10
+format: full

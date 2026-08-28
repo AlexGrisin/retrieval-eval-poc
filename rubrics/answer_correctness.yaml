@@ -1,0 +1,32 @@
+# Judge only where a reviewed reference answer exists. Does the answer match it?
+
+name: answer_correctness
+display_name: "Answer correctness"
+type: geval
+scores: the answer, against a reference answer
+description: >-
+  The answer matches the reference answer for cases where one exists.
+criteria: |
+  Score using these anchored bands:
+    1.0 — Matches the reference; no material difference.
+    0.5 — Partially correct: right idea, wrong or missing detail.
+    0.0 — Contradicts the reference, or answers a different entity.
+threshold: 0.8
+
+only_meaningful_when: a reference answer exists for the case
+prefer: >-
+  Use alongside faithfulness and relevancy because each scores a different
+  relationship.
+why: >-
+  Semantic agreement with a reference answer cannot be compared reliably as exact
+  text. This rubric measures correctness independently from grounding and relevance.
+
+refusal_band:
+  # same rule as relevancy.yaml -- applies only when the context lacks the answer
+  - {behaviour: "refuses and says why", score: near the top}
+  - {behaviour: "refuses although the context did contain the answer", score: mid band}
+  - {behaviour: "answers anyway, or substitutes a different entity", score: zero}
+
+traceability:
+  status: unratified
+  source: "TASKS.md task 7. Standard RAG judging criterion; no Component Guide section names it."
