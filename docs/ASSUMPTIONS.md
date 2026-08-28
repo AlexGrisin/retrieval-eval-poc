@@ -106,6 +106,18 @@ Confidence scale: **high** = observed directly in the repo, only the intent is o
   [PATTERNS/fixture-load-and-validate.md](./PATTERNS/fixture-load-and-validate.md) —
   promote to a standalone pattern if a second numbered-sequence fixture type appears.
 
+### Latency numbers are real timing, but a fake backend
+
+- `result["latency_ms"]` (see `LATENCY-MEASUREMENT-PLAN.md`) times each
+  `SpyClient.search()` call for real — `inprocess` mode is near-zero (in-memory
+  Python call), `mcp`/`rest` show real `asyncio`/serialization round-trip
+  overhead, but none of it is a real network+server latency signal yet since
+  both transports wrap in-memory servers, not a live one. No pass/fail budget
+  exists — report-only until a real threshold is approved against real numbers.
+- Confidence: high. Resolve in: [ARCHITECTURE.md](./ARCHITECTURE.md) +
+  `../TASKS.md` once the real Knowledge Server is connected and a threshold is
+  reviewed.
+
 ## kb_search migration (in progress)
 
 ### kb_fetch and kb_related are not implemented

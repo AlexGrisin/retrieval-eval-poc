@@ -136,6 +136,9 @@ def _allure_case_report(request):
         result = request.getfixturevalue("case_results")[case_id]
         _attach_json("retrieval trace", result["trace"])
         _attach_json("ranking metrics", result["metrics"])
+        # Sibling to "metrics" by design (see LATENCY-MEASUREMENT-PLAN.md), so it
+        # needs its own attachment -- it's never swept in via result["metrics"].
+        _attach_json("latency", {"latency_ms": result["latency_ms"]})
     if "captured_runs" in request.fixturenames:
         try:
             run = request.getfixturevalue("captured_runs")[case_id]

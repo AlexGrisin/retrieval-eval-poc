@@ -56,6 +56,7 @@ of the boundary each package defends:
 | `skill/contracts.py` | Internal request/response objects | Know a transport |
 | `skill/schemas.py` | The one shared MCP/REST wire shape | Be duplicated |
 | `skill/fake_server.py` | Deterministic fixture-backed retrieval | Leak into prod code |
+| `skill/client.py::SpyClient` | Emitted call + per-call latency, any transport | Gate on either |
 
 ## Structural invariants
 
@@ -76,6 +77,10 @@ of the boundary each package defends:
   `case-NNN-*` sequence.
 - **Determinism before semantics**: judge and metric layers consume a captured run;
   they never call the target themselves.
+- **Latency is measured, not gated**: `result["latency_ms"]` is a sibling of
+  `result["metrics"]`, never a key inside it — `harness/baselines.py::compare_records`
+  does an exact key-set comparison on `metrics`, so anything added there breaks every
+  committed baseline. See `LATENCY-MEASUREMENT-PLAN.md`.
 
 ## Testing architecture
 

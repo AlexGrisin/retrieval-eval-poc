@@ -6,7 +6,8 @@ import pytest
 
 from harness.validators import CHECKS, applies_to
 from harness.validators.contract import check_response_contract
-from skill.contracts import Entity, SearchHit, SearchResponse
+from skill.client import SpyClient
+from skill.contracts import Entity, SearchHit, SearchRequest, SearchResponse
 from tests.support import framework_id, load_cases
 
 # Markers come from the traceability registry, so `-m "not unratified"` shows the
@@ -101,3 +102,27 @@ def test_response_contract_reports_wrong_field_type():
     detail = check_response_contract(response)
     assert detail is not None
     assert "response does not match the published contract" in detail
+
+
+@framework_id("synthetic:client:latency_recorded_per_call")
+def test_spy_client_records_a_duration_per_call():
+    """SpyClient times each call; see LATENCY-MEASUREMENT-PLAN.md.
+
+    Sanity properties only -- wall-clock timing is nondeterministic, so this
+    checks shape (one duration per call, non-negative, last reflects most
+    recent), not exact values.
+    """
+
+    class _InstantBackend:
+        def search(self, request: SearchRequest) -> SearchResponse:
+            return SearchResponse(results=[])
+
+    spy = SpyClient(_InstantBackend())
+    assert spy.last_duration_ms is None
+
+    spy.search(SearchRequest(domain="paastry", query="first", limit=10))
+    spy.search(SearchRequest(domain="paastry", query="second", limit=10))
+
+    assert len(spy.durations_ms) == len(spy.calls) == 2
+    assert all(duration >= 0.0 for duration in spy.durations_ms)
+    assert spy.last_duration_ms == spy.durations_ms[-1]

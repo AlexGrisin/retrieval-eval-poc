@@ -187,6 +187,11 @@ def run_case(case: dict, corpus: Path, transport: str = "inprocess") -> dict:
         "id": case["id"],
         "ranked": ranked,
         "metrics": metrics,
+        # Sibling to "metrics", never inside it: harness/baselines.py's
+        # compare_records() does an exact key-set comparison on "metrics" --
+        # adding a key there would make every committed baseline incompatible.
+        # Report-only until a real threshold is approved.
+        "latency_ms": spy.last_duration_ms,
         "checks": checks,
         "invariant_failures": invariant_failures,
         "passed": not invariant_failures,
@@ -241,6 +246,8 @@ def run_case_repeated(
         distribution[key] = stats
         metrics[key] = stats["mean"]
 
+    latency_stats = summarize([r["latency_ms"] for r in runs])
+
     failures = sorted({f for r in runs for f in r["invariant_failures"]})
 
     # A deterministic backend that is not deterministic is a defect, not noise.
@@ -267,6 +274,8 @@ def run_case_repeated(
         "trace": runs[0]["trace"],
         "metrics": metrics,
         "distribution": distribution,
+        "latency_ms": latency_stats["mean"],
+        "latency_distribution_ms": latency_stats,
         "invariant_failures": failures,
         "passed": verdict == "PASS",
     }
@@ -392,6 +401,7 @@ def main() -> int:
                 print("\nmetrics:")
                 for k, v in r["metrics"].items():
                     print(f"  {k} = {v}")
+            print(f"\nlatency: {r['latency_ms']:.2f} ms")
         print("\n" + "=" * 78)
 
     # ---- report ----
@@ -403,8 +413,10 @@ def main() -> int:
             m = " ".join(
                 f"{k}={s['mean']}~{s['std_dev']}" for k, s in r["distribution"].items()
             )
+            m += f"  latency_ms={r['latency_ms']:.2f}~{r['latency_distribution_ms']['std_dev']:.2f}"
         else:
             m = " ".join(f"{k}={v}" for k, v in r["metrics"].items())
+            m += f"  latency_ms={r['latency_ms']:.2f}"
         print(f"{r['id']:<15} {r['verdict']:<8} {m}")
         for f in r["invariant_failures"]:
             print(f"    ! {f}")

@@ -10,15 +10,15 @@
         "mode": "mock-mcp",
         "transport": "mcp",
         "executions": 1,
-        "corpus_version": "fixture-2026-08-20.1",
-        "corpus_hash": "b54427af50ac8894d55bc0b5fa2a65e0c7fe979e6e102ead8e26ddd853c8bff3",
-        "case_set_hash": "c6a776b6df60bedc3b3e303604152b8b9157b2102993c3202d55a2dcaa3e143d",
-        "contracts_hash": "16948fcd3b720231382ea98acb567885875a2f5fa4f7575203399c058cd7a6a2",
-        "orchestration_hash": "b6dfdf1a6b0cce21cdfaeee672e63386341227fa457da3fba3cab4da3cbee7c9",
+        "corpus_version": "fixture-2026-08-28.1",
+        "corpus_hash": "2f99ce46a9a98a940f2e061166d10776ceef346a4253671c3c27ad5ff7038d5d",
+        "case_set_hash": "ab13d5bcba9ee087e0f93f61155a2c1090e3ac2596e8bd3d64901b50b03a0c2c",
+        "contracts_hash": "9d3b56250b1473466fb0dd0474a2ef52cde84bf70fac2a9d28c6d8c470b63ced",
+        "orchestration_hash": "22271ae8e1d3bcf3812cedbbfb6409386412a2c0774f850821cc01cbd9edf092",
         "dependency_lock_hash": "043da7c09d4f72976c329a65e881317e75e42a439e9789d7bfd9b13f98685888",
         "python": "3.14.0",
-        "mcp_sdk": "2.0.0",
-        "corpus_snapshot": "fixture-2026-08-20.1:b54427af50ac8894d55bc0b5fa2a65e0c7fe979e6e102ead8e26ddd853c8bff3",
+        "mcp_sdk": "2.1.1",
+        "corpus_snapshot": "fixture-2026-08-28.1:2f99ce46a9a98a940f2e061166d10776ceef346a4253671c3c27ad5ff7038d5d",
         "index_schema_version": "fixture-v1",
         "chunking_version": "not-applicable",
         "embedding_model": "not-applicable-token-overlap",
@@ -30,7 +30,7 @@
       },
       "profiles": {
         "validators": {
-          "validator_implementation_hash": "c87532b8c38564ca288e1b6131078804506d6d936f722532754b4da5f32cebca"
+          "validator_implementation_hash": "1852c64fc077829d575f0e2d66b9e3c9717e42a929091bb84f9b06385971acc9"
         },
         "ranking": {
           "profile_version": "ranking-v1",
@@ -43,33 +43,45 @@
           ],
           "regression_policy": "absolute-drop-v1",
           "absolute_drop_tolerance": 0.02
+        },
+        "latency": {
+          "profile_version": "latency-v1",
+          "measurement": "wall_clock_ms_per_search_call",
+          "gated": false
         }
       }
     },
     "target": {
-      "knowledge_server_version": "69080dc986fd215c57e66fcd51fdd4ee51ae54e916b1dd838f7cecd353806aa9",
-      "retrieval_skill_version": "7f49532dd6699aca6915e2bc6187dbd9dedb22a8419071b9cea760592f30db0e",
+      "knowledge_server_version": "886b388b98d9b03c983e446d1f5786f13b477f5f774b64c4a7d11bcce4cce753",
+      "retrieval_skill_version": "4a60e90136addb74d706daab0018be2b87089b64298cfd560f21a587f0d76aec",
       "graph_vector_store": "fixture-memory",
       "graph_vector_store_version": "fixture-v1",
-      "index_build_id": "b54427af50ac8894d55bc0b5fa2a65e0c7fe979e6e102ead8e26ddd853c8bff3",
+      "index_build_id": "2f99ce46a9a98a940f2e061166d10776ceef346a4253671c3c27ad5ff7038d5d",
       "retrieval_configuration_version": "token-overlap-v1"
     },
     "comparison": {
       "change_under_test": []
     },
     "run": {
-      "run_at": "2026-08-28T09:13:11+00:00"
+      "run_at": "2026-08-28T13:14:30+00:00"
     }
   },
   "cases": [
     {
-      "id": "case-001-retries-ranking",
+      "id": "case-001-rounding-fix-ranking",
       "executions": 1,
       "verdict": "PASS",
       "ranked": [
-        "n-0002",
-        "n-0001",
-        "n-0003"
+        "DocChunk/pricing-rounding-design-doc",
+        "Service/pricing-api",
+        "Person/alex-chen",
+        "TestSuite/pricing-api-unit-tests",
+        "Story/PAAS-201",
+        "Repository/paastry/svc-pricing-api",
+        "Team/pricing-team",
+        "Commit/github.com/paastry/svc-pricing-api@a1f9c2d",
+        "Service/tier-config-service",
+        "Commit/github.com/paastry/svc-pricing-api@f00dfed"
       ],
       "checks": [
         {
@@ -77,99 +89,104 @@
           "status": "ok",
           "detail": "",
           "traceability": "traced",
-          "source": "task statement: 'defining request context and filters'"
+          "source": "mcp-tool-contracts-reference.md \u00a72.1, kb_search argument shape"
         },
         {
           "name": "contract:response_contract_valid",
           "status": "ok",
           "detail": "",
           "traceability": "traced",
-          "source": "Component Guide 4.3 and 11, the response contract carries versioned provenance and facets"
-        },
-        {
-          "name": "retrieval:must_not_return",
-          "status": "ok",
-          "detail": "",
-          "traceability": "traced",
-          "source": "Component Guide 4.4 veracity tiers, 8.2 supersedes chains, 5.4 query-time access control"
+          "source": "mcp-tool-contracts-reference.md \u00a72.1, SearchHit response shape"
         },
         {
           "name": "format:every_result_has_provenance",
           "status": "ok",
           "detail": "",
           "traceability": "traced",
-          "source": "Component Guide 4.3 and 11, provenance is pinned and carried forward"
+          "source": "mcp-tool-contracts-reference.md Gotcha 5, cite everything"
         }
       ],
       "trace": {
-        "query": "how do we handle retries on payment failures?",
-        "caller": {
-          "department": "commerce",
-          "product": "shop"
-        },
-        "filters": {
-          "veracity": [
-            "verified"
-          ],
-          "validity": "current"
-        },
+        "query": "why was the pricing rounding bug fixed?",
+        "domain": "paastry",
         "tool_call": {
-          "tool": "knowledge_retrieve",
+          "tool": "kb_search",
           "args": {
-            "query": "how do we handle retries on payment failures?",
-            "scope": {
-              "department": "commerce",
-              "product": "shop"
-            },
-            "filters": {
-              "validity": "current",
-              "veracity": [
-                "verified"
-              ]
-            },
-            "k": 10,
-            "format": "full"
+            "domain": "paastry",
+            "query": "why was the pricing rounding bug fixed?",
+            "limit": 10
           }
         },
         "calls": 1,
         "results": [
           {
-            "note": "n-0002",
-            "v": 1,
-            "score": 0.301511,
-            "veracity": "verified",
-            "title": "Payment failure taxonomy"
+            "entity": "DocChunk/pricing-rounding-design-doc",
+            "title": "Pricing Rounding Design Notes",
+            "score": 0.316228,
+            "matched_by": "fulltext"
           },
           {
-            "note": "n-0001",
-            "v": 3,
-            "score": 0.3,
-            "veracity": "verified",
-            "title": "Idempotency guarantees in the settlement path"
+            "entity": "Service/pricing-api",
+            "title": "Pricing API",
+            "score": 0.298142,
+            "matched_by": "fulltext"
           },
           {
-            "note": "n-0003",
-            "v": 2,
-            "score": 0.25,
-            "veracity": "verified",
-            "title": "Retry budgets for downstream calls"
+            "entity": "Person/alex-chen",
+            "title": "Alex Chen",
+            "score": 0.282843,
+            "matched_by": "fulltext"
+          },
+          {
+            "entity": "TestSuite/pricing-api-unit-tests",
+            "title": "Pricing API Unit Tests",
+            "score": 0.258199,
+            "matched_by": "fulltext"
+          },
+          {
+            "entity": "Story/PAAS-201",
+            "title": "Fix pricing rounding error for tiered discounts",
+            "score": 0.239046,
+            "matched_by": "fulltext"
+          },
+          {
+            "entity": "Repository/paastry/svc-pricing-api",
+            "title": "svc-pricing-api",
+            "score": 0.182574,
+            "matched_by": "fulltext"
+          },
+          {
+            "entity": "Team/pricing-team",
+            "title": "Pricing Team",
+            "score": 0.158114,
+            "matched_by": "fulltext"
+          },
+          {
+            "entity": "Commit/github.com/paastry/svc-pricing-api@a1f9c2d",
+            "title": "Fix rounding error in tiered discount calculation",
+            "score": 0.129099,
+            "matched_by": "fulltext"
+          },
+          {
+            "entity": "Service/tier-config-service",
+            "title": "Tier Configuration Service",
+            "score": 0.129099,
+            "matched_by": "fulltext"
+          },
+          {
+            "entity": "Commit/github.com/paastry/svc-pricing-api@f00dfed",
+            "title": "Attempt rounding fix for discount tiers (reverted)",
+            "score": 0.11547,
+            "matched_by": "fulltext"
           }
         ],
-        "facets": {
-          "product": {
-            "shop": 3
-          },
-          "veracity": {
-            "verified": 3
-          }
-        },
-        "rendered": "### Knowledge \u2014 3 notes \u00b7 scope commerce/shop \u00b7 filters validity=current veracity=verified\n1. Payment failure taxonomy   [verified]\n   > \"Payment failures are classified terminal, retryable, or ambiguous; only retryable failures may be retried.\"\n   note n-0002@1 \u00b7 source confluence:PAY-4412@7\n2. Idempotency guarantees in the settlement path   [verified \u00b7 valid to 2026-12-31]\n   > \"Settlement writes are idempotent per payment intent, so retries after payment failures must reuse the original idempotency key instead of generating a new one.\"\n   note n-0001@3 \u00b7 source github:acme/payments#docs/settlement.md@a1b2c3d\n3. Retry budgets for downstream calls   [verified]\n   > \"Each downstream call carries a retry budget; exhausting it surfaces terminal failures rather than further retries.\"\n   note n-0003@2 \u00b7 source github:acme/platform#docs/resilience.md@9f8e7d6\nFacets: product{shop:3} \u00b7 veracity{verified:3}\n"
+        "rendered": "### Knowledge \u2014 10 entities \u00b7 domain paastry\n1. Pricing Rounding Design Notes   [DocChunk/pricing-rounding-design-doc \u00b7 fulltext]\n   > \"Design rationale for how tiered discount rounding should behave.\"\n   citations: confluence:PAAS-design-notes#rounding\n2. Pricing API   [Service/pricing-api \u00b7 fulltext]\n   > \"Computes tiered subscription pricing and applies discount rounding rules.\"\n   citations: github:paastry/svc-pricing-api\n3. Alex Chen   [Person/alex-chen \u00b7 fulltext]\n   > \"Engineer on the pricing team; authored the tiered-discount rounding fix.\"\n   citations: docs:people/alex-chen\n4. Pricing API Unit Tests   [TestSuite/pricing-api-unit-tests \u00b7 fulltext]\n   > \"Unit test suite covering tiered discount calculation and rounding behaviour.\"\n   citations: github:paastry/svc-pricing-api#tests\n5. Fix pricing rounding error for tiered discounts   [Story/PAAS-201 \u00b7 fulltext]\n   > \"Customers on tiered discount plans were undercharged due to a rounding error; drove the pricing-api fix.\"\n   citations: jira:PAAS-201\n6. svc-pricing-api   [Repository/paastry/svc-pricing-api \u00b7 fulltext]\n   > \"Source repository for the Pricing API service.\"\n   citations: github:paastry/svc-pricing-api\n7. Pricing Team   [Team/pricing-team \u00b7 fulltext]\n   > \"Owns pricing-api and tier-config-service end to end.\"\n   citations: docs:teams/pricing-team\n8. Fix rounding error in tiered discount calculation   [Commit/github.com/paastry/svc-pricing-api@a1f9c2d \u00b7 fulltext]\n   > \"Corrects a rounding error that undercharged customers on tiered discount plans. Accepted and merged.\"\n   citations: github:paastry/svc-pricing-api@a1f9c2d\n9. Tier Configuration Service   [Service/tier-config-service \u00b7 fulltext]\n   > \"Owns plan tier definitions and discount thresholds consumed by pricing-api.\"\n   citations: github:paastry/svc-tier-config\n10. Attempt rounding fix for discount tiers (reverted)   [Commit/github.com/paastry/svc-pricing-api@f00dfed \u00b7 fulltext]\n   > \"An earlier attempt at fixing tiered discount rounding. Reverted before release; superseded by a1f9c2d.\"\n   citations: github:paastry/svc-pricing-api@f00dfed\n"
       },
       "metrics": {
         "recall@10": 1.0,
-        "precision@5": 0.6,
+        "precision@5": 0.4,
         "mrr": 1.0,
-        "ndcg@10": 0.8821
+        "ndcg@10": 0.6673
       },
       "distribution": {
         "recall@10": {
@@ -181,11 +198,11 @@
           "n": 1
         },
         "precision@5": {
-          "mean": 0.6,
-          "median": 0.6,
+          "mean": 0.4,
+          "median": 0.4,
           "std_dev": 0.0,
-          "min": 0.6,
-          "max": 0.6,
+          "min": 0.4,
+          "max": 0.4,
           "n": 1
         },
         "mrr": {
@@ -197,13 +214,22 @@
           "n": 1
         },
         "ndcg@10": {
-          "mean": 0.8821,
-          "median": 0.8821,
+          "mean": 0.6673,
+          "median": 0.6673,
           "std_dev": 0.0,
-          "min": 0.8821,
-          "max": 0.8821,
+          "min": 0.6673,
+          "max": 0.6673,
           "n": 1
         }
+      },
+      "latency_ms": 48.8122,
+      "latency_distribution_ms": {
+        "mean": 48.8122,
+        "median": 48.8122,
+        "std_dev": 0.0,
+        "min": 48.8122,
+        "max": 48.8122,
+        "n": 1
       },
       "invariant_failures": [],
       "passed": true
@@ -213,9 +239,16 @@
       "executions": 1,
       "verdict": "PASS",
       "ranked": [
-        "n-0001",
-        "n-0002",
-        "n-0003"
+        "Commit/github.com/paastry/svc-pricing-api@a1f9c2d",
+        "Story/PAAS-201",
+        "DocChunk/pricing-rounding-design-doc",
+        "PullRequest/paastry/svc-pricing-api#482",
+        "Service/pricing-api",
+        "Person/alex-chen",
+        "TestSuite/pricing-api-unit-tests",
+        "Commit/github.com/paastry/svc-pricing-api@f00dfed",
+        "Feature/tiered-discount-calculation",
+        "Service/tier-config-service"
       ],
       "checks": [
         {
@@ -223,100 +256,105 @@
           "status": "ok",
           "detail": "",
           "traceability": "traced",
-          "source": "task statement: 'defining request context and filters'"
+          "source": "mcp-tool-contracts-reference.md \u00a72.1, kb_search argument shape"
         },
         {
           "name": "contract:response_contract_valid",
           "status": "ok",
           "detail": "",
           "traceability": "traced",
-          "source": "Component Guide 4.3 and 11, the response contract carries versioned provenance and facets"
-        },
-        {
-          "name": "retrieval:must_not_return",
-          "status": "ok",
-          "detail": "",
-          "traceability": "traced",
-          "source": "Component Guide 4.4 veracity tiers, 8.2 supersedes chains, 5.4 query-time access control"
+          "source": "mcp-tool-contracts-reference.md \u00a72.1, SearchHit response shape"
         },
         {
           "name": "retrieval:expected_first_result",
           "status": "ok",
           "detail": "",
           "traceability": "traced",
-          "source": "Component Guide 8.2, resolve which version is authoritative"
+          "source": "mcp-tool-contracts-reference.md Gotcha 2, exact identifiers can rank below doc chunks"
         },
         {
           "name": "format:every_result_has_provenance",
           "status": "ok",
           "detail": "",
           "traceability": "traced",
-          "source": "Component Guide 4.3 and 11, provenance is pinned and carried forward"
+          "source": "mcp-tool-contracts-reference.md Gotcha 5, cite everything"
         }
       ],
       "trace": {
-        "query": "how are settlement retries for payment failures handled?",
-        "caller": {
-          "department": "commerce",
-          "product": "shop"
-        },
-        "filters": {
-          "veracity": [
-            "verified"
-          ],
-          "validity": "current"
-        },
+        "query": "what fixed the tiered discount rounding error?",
+        "domain": "paastry",
         "tool_call": {
-          "tool": "knowledge_retrieve",
+          "tool": "kb_search",
           "args": {
-            "query": "how are settlement retries for payment failures handled?",
-            "scope": {
-              "department": "commerce",
-              "product": "shop"
-            },
-            "filters": {
-              "validity": "current",
-              "veracity": [
-                "verified"
-              ]
-            },
-            "k": 10,
-            "format": "full"
+            "domain": "paastry",
+            "query": "what fixed the tiered discount rounding error?",
+            "limit": 10
           }
         },
         "calls": 1,
         "results": [
           {
-            "note": "n-0001",
-            "v": 3,
-            "score": 0.357771,
-            "veracity": "verified",
-            "title": "Idempotency guarantees in the settlement path"
+            "entity": "Commit/github.com/paastry/svc-pricing-api@a1f9c2d",
+            "title": "Fix rounding error in tiered discount calculation",
+            "score": 0.516398,
+            "matched_by": "fulltext"
           },
           {
-            "note": "n-0002",
-            "v": 1,
-            "score": 0.26968,
-            "veracity": "verified",
-            "title": "Payment failure taxonomy"
+            "entity": "Story/PAAS-201",
+            "title": "Fix pricing rounding error for tiered discounts",
+            "score": 0.478091,
+            "matched_by": "fulltext"
           },
           {
-            "note": "n-0003",
-            "v": 2,
-            "score": 0.223607,
-            "veracity": "verified",
-            "title": "Retry budgets for downstream calls"
+            "entity": "DocChunk/pricing-rounding-design-doc",
+            "title": "Pricing Rounding Design Notes",
+            "score": 0.474342,
+            "matched_by": "fulltext"
+          },
+          {
+            "entity": "PullRequest/paastry/svc-pricing-api#482",
+            "title": "PR #482: Fix rounding error in tiered discount calculation",
+            "score": 0.46188,
+            "matched_by": "fulltext"
+          },
+          {
+            "entity": "Service/pricing-api",
+            "title": "Pricing API",
+            "score": 0.447214,
+            "matched_by": "fulltext"
+          },
+          {
+            "entity": "Person/alex-chen",
+            "title": "Alex Chen",
+            "score": 0.424264,
+            "matched_by": "fulltext"
+          },
+          {
+            "entity": "TestSuite/pricing-api-unit-tests",
+            "title": "Pricing API Unit Tests",
+            "score": 0.387298,
+            "matched_by": "fulltext"
+          },
+          {
+            "entity": "Commit/github.com/paastry/svc-pricing-api@f00dfed",
+            "title": "Attempt rounding fix for discount tiers (reverted)",
+            "score": 0.34641,
+            "matched_by": "fulltext"
+          },
+          {
+            "entity": "Feature/tiered-discount-calculation",
+            "title": "Tiered Discount Calculation",
+            "score": 0.282843,
+            "matched_by": "fulltext"
+          },
+          {
+            "entity": "Service/tier-config-service",
+            "title": "Tier Configuration Service",
+            "score": 0.129099,
+            "matched_by": "fulltext"
           }
         ],
-        "facets": {
-          "product": {
-            "shop": 3
-          },
-          "veracity": {
-            "verified": 3
-          }
-        },
-        "rendered": "### Knowledge \u2014 3 notes \u00b7 scope commerce/shop \u00b7 filters validity=current veracity=verified\n1. Idempotency guarantees in the settlement path   [verified \u00b7 valid to 2026-12-31]\n   > \"Settlement writes are idempotent per payment intent, so retries after payment failures must reuse the original idempotency key instead of generating a new one.\"\n   note n-0001@3 \u00b7 source github:acme/payments#docs/settlement.md@a1b2c3d\n2. Payment failure taxonomy   [verified]\n   > \"Payment failures are classified terminal, retryable, or ambiguous; only retryable failures may be retried.\"\n   note n-0002@1 \u00b7 source confluence:PAY-4412@7\n3. Retry budgets for downstream calls   [verified]\n   > \"Each downstream call carries a retry budget; exhausting it surfaces terminal failures rather than further retries.\"\n   note n-0003@2 \u00b7 source github:acme/platform#docs/resilience.md@9f8e7d6\nFacets: product{shop:3} \u00b7 veracity{verified:3}\n"
+        "rendered": "### Knowledge \u2014 10 entities \u00b7 domain paastry\n1. Fix rounding error in tiered discount calculation   [Commit/github.com/paastry/svc-pricing-api@a1f9c2d \u00b7 fulltext]\n   > \"Corrects a rounding error that undercharged customers on tiered discount plans. Accepted and merged.\"\n   citations: github:paastry/svc-pricing-api@a1f9c2d\n2. Fix pricing rounding error for tiered discounts   [Story/PAAS-201 \u00b7 fulltext]\n   > \"Customers on tiered discount plans were undercharged due to a rounding error; drove the pricing-api fix.\"\n   citations: jira:PAAS-201\n3. Pricing Rounding Design Notes   [DocChunk/pricing-rounding-design-doc \u00b7 fulltext]\n   > \"Design rationale for how tiered discount rounding should behave.\"\n   citations: confluence:PAAS-design-notes#rounding\n4. PR #482: Fix rounding error in tiered discount calculation   [PullRequest/paastry/svc-pricing-api#482 \u00b7 fulltext]\n   > \"Pull request that merged the tiered-discount rounding fix authored by Alex Chen.\"\n   citations: github:paastry/svc-pricing-api#482\n5. Pricing API   [Service/pricing-api \u00b7 fulltext]\n   > \"Computes tiered subscription pricing and applies discount rounding rules.\"\n   citations: github:paastry/svc-pricing-api\n6. Alex Chen   [Person/alex-chen \u00b7 fulltext]\n   > \"Engineer on the pricing team; authored the tiered-discount rounding fix.\"\n   citations: docs:people/alex-chen\n7. Pricing API Unit Tests   [TestSuite/pricing-api-unit-tests \u00b7 fulltext]\n   > \"Unit test suite covering tiered discount calculation and rounding behaviour.\"\n   citations: github:paastry/svc-pricing-api#tests\n8. Attempt rounding fix for discount tiers (reverted)   [Commit/github.com/paastry/svc-pricing-api@f00dfed \u00b7 fulltext]\n   > \"An earlier attempt at fixing tiered discount rounding. Reverted before release; superseded by a1f9c2d.\"\n   citations: github:paastry/svc-pricing-api@f00dfed\n9. Tiered Discount Calculation   [Feature/tiered-discount-calculation \u00b7 fulltext]\n   > \"Computes the discount percentage applied at each subscription tier.\"\n   citations: docs:features/tiered-discount-calculation\n10. Tier Configuration Service   [Service/tier-config-service \u00b7 fulltext]\n   > \"Owns plan tier definitions and discount thresholds consumed by pricing-api.\"\n   citations: github:paastry/svc-tier-config\n"
       },
       "metrics": {
         "recall@10": 1.0,
@@ -358,108 +396,97 @@
           "n": 1
         }
       },
+      "latency_ms": 5.6353,
+      "latency_distribution_ms": {
+        "mean": 5.6353,
+        "median": 5.6353,
+        "std_dev": 0.0,
+        "min": 5.6353,
+        "max": 5.6353,
+        "n": 1
+      },
       "invariant_failures": [],
       "passed": true
     },
     {
-      "id": "case-003-scope-isolation",
+      "id": "case-003-domain-isolation",
       "executions": 1,
       "verdict": "PASS",
-      "ranked": [
-        "n-0008"
-      ],
+      "ranked": [],
       "checks": [
         {
           "name": "contract:emitted_tool_call",
           "status": "ok",
           "detail": "",
           "traceability": "traced",
-          "source": "task statement: 'defining request context and filters'"
+          "source": "mcp-tool-contracts-reference.md \u00a72.1, kb_search argument shape"
         },
         {
           "name": "contract:response_contract_valid",
           "status": "ok",
           "detail": "",
           "traceability": "traced",
-          "source": "Component Guide 4.3 and 11, the response contract carries versioned provenance and facets"
+          "source": "mcp-tool-contracts-reference.md \u00a72.1, SearchHit response shape"
         },
         {
           "name": "retrieval:must_not_return",
           "status": "ok",
           "detail": "",
           "traceability": "traced",
-          "source": "Component Guide 4.4 veracity tiers, 8.2 supersedes chains, 5.4 query-time access control"
+          "source": "mcp-tool-contracts-reference.md Gotcha 1 and 2, ranking correctness"
         },
         {
           "name": "format:every_result_has_provenance",
           "status": "ok",
           "detail": "",
           "traceability": "traced",
-          "source": "Component Guide 4.3 and 11, provenance is pinned and carried forward"
+          "source": "mcp-tool-contracts-reference.md Gotcha 5, cite everything"
         }
       ],
       "trace": {
-        "query": "how do we handle retries on payment failures?",
-        "caller": {
-          "department": "finance"
-        },
-        "filters": {
-          "veracity": [
-            "verified"
-          ],
-          "validity": "current"
-        },
+        "query": "why was the pricing rounding bug fixed?",
+        "domain": "unrelated-domain",
         "tool_call": {
-          "tool": "knowledge_retrieve",
+          "tool": "kb_search",
           "args": {
-            "query": "how do we handle retries on payment failures?",
-            "scope": {
-              "department": "finance",
-              "product": null
-            },
-            "filters": {
-              "validity": "current",
-              "veracity": [
-                "verified"
-              ]
-            },
-            "k": 10,
-            "format": "full"
+            "domain": "unrelated-domain",
+            "query": "why was the pricing rounding bug fixed?",
+            "limit": 10
           }
         },
         "calls": 1,
-        "results": [
-          {
-            "note": "n-0008",
-            "v": 1,
-            "score": 0.150756,
-            "veracity": "verified",
-            "title": "Revenue recognition timing for orders"
-          }
-        ],
-        "facets": {
-          "product": {
-            "ledger": 1
-          },
-          "veracity": {
-            "verified": 1
-          }
-        },
-        "rendered": "### Knowledge \u2014 1 note \u00b7 scope finance \u00b7 filters validity=current veracity=verified\n1. Revenue recognition timing for orders   [verified]\n   > \"Order revenue is recognised on shipment confirmation, not on payment capture.\"\n   note n-0008@1 \u00b7 source confluence:FIN-77@12\nFacets: product{ledger:1} \u00b7 veracity{verified:1}\n"
+        "results": [],
+        "rendered": "### Knowledge \u2014 no entities matched\ndomain unrelated-domain\n"
       },
       "metrics": {},
       "distribution": {},
+      "latency_ms": 4.0652,
+      "latency_distribution_ms": {
+        "mean": 4.0652,
+        "median": 4.0652,
+        "std_dev": 0.0,
+        "min": 4.0652,
+        "max": 4.0652,
+        "n": 1
+      },
       "invariant_failures": [],
       "passed": true
     },
     {
-      "id": "case-004-unknown-filter-rejected",
+      "id": "case-004-malformed-argument-rejected",
       "executions": 1,
       "verdict": "PASS",
       "ranked": [
-        "n-0002",
-        "n-0001",
-        "n-0003"
+        "DocChunk/pricing-rounding-design-doc",
+        "Service/pricing-api",
+        "Person/alex-chen",
+        "TestSuite/pricing-api-unit-tests",
+        "Story/PAAS-201",
+        "Repository/paastry/svc-pricing-api",
+        "Team/pricing-team",
+        "Commit/github.com/paastry/svc-pricing-api@a1f9c2d",
+        "Service/tier-config-service",
+        "Commit/github.com/paastry/svc-pricing-api@f00dfed"
       ],
       "checks": [
         {
@@ -467,96 +494,117 @@
           "status": "ok",
           "detail": "",
           "traceability": "traced",
-          "source": "task statement: 'defining request context and filters'"
+          "source": "mcp-tool-contracts-reference.md \u00a72.1, kb_search argument shape"
         },
         {
           "name": "contract:response_contract_valid",
           "status": "ok",
           "detail": "",
           "traceability": "traced",
-          "source": "Component Guide 4.3 and 11, the response contract carries versioned provenance and facets"
+          "source": "mcp-tool-contracts-reference.md \u00a72.1, SearchHit response shape"
         },
         {
           "name": "contract:server_rejects_invalid_request",
           "status": "ok",
           "detail": "",
           "traceability": "traced",
-          "source": "Component Guide 5.4 and 11, enforcement is server side, clients are never trusted"
+          "source": "mcp-tool-contracts-reference.md, extra=forbid enforcement is server side, clients are never trusted"
         },
         {
           "name": "format:every_result_has_provenance",
           "status": "ok",
           "detail": "",
           "traceability": "traced",
-          "source": "Component Guide 4.3 and 11, provenance is pinned and carried forward"
+          "source": "mcp-tool-contracts-reference.md Gotcha 5, cite everything"
         }
       ],
       "trace": {
-        "query": "how do we handle retries on payment failures?",
-        "caller": {
-          "department": "commerce",
-          "product": "shop"
-        },
-        "filters": {
-          "veracity": [
-            "verified"
-          ],
-          "validity": "current"
-        },
+        "query": "why was the pricing rounding bug fixed?",
+        "domain": "paastry",
         "tool_call": {
-          "tool": "knowledge_retrieve",
+          "tool": "kb_search",
           "args": {
-            "query": "how do we handle retries on payment failures?",
-            "scope": {
-              "department": "commerce",
-              "product": "shop"
-            },
-            "filters": {
-              "validity": "current",
-              "veracity": [
-                "verified"
-              ]
-            },
-            "k": 10,
-            "format": "full"
+            "domain": "paastry",
+            "query": "why was the pricing rounding bug fixed?",
+            "limit": 10
           }
         },
         "calls": 1,
         "results": [
           {
-            "note": "n-0002",
-            "v": 1,
-            "score": 0.301511,
-            "veracity": "verified",
-            "title": "Payment failure taxonomy"
+            "entity": "DocChunk/pricing-rounding-design-doc",
+            "title": "Pricing Rounding Design Notes",
+            "score": 0.316228,
+            "matched_by": "fulltext"
           },
           {
-            "note": "n-0001",
-            "v": 3,
-            "score": 0.3,
-            "veracity": "verified",
-            "title": "Idempotency guarantees in the settlement path"
+            "entity": "Service/pricing-api",
+            "title": "Pricing API",
+            "score": 0.298142,
+            "matched_by": "fulltext"
           },
           {
-            "note": "n-0003",
-            "v": 2,
-            "score": 0.25,
-            "veracity": "verified",
-            "title": "Retry budgets for downstream calls"
+            "entity": "Person/alex-chen",
+            "title": "Alex Chen",
+            "score": 0.282843,
+            "matched_by": "fulltext"
+          },
+          {
+            "entity": "TestSuite/pricing-api-unit-tests",
+            "title": "Pricing API Unit Tests",
+            "score": 0.258199,
+            "matched_by": "fulltext"
+          },
+          {
+            "entity": "Story/PAAS-201",
+            "title": "Fix pricing rounding error for tiered discounts",
+            "score": 0.239046,
+            "matched_by": "fulltext"
+          },
+          {
+            "entity": "Repository/paastry/svc-pricing-api",
+            "title": "svc-pricing-api",
+            "score": 0.182574,
+            "matched_by": "fulltext"
+          },
+          {
+            "entity": "Team/pricing-team",
+            "title": "Pricing Team",
+            "score": 0.158114,
+            "matched_by": "fulltext"
+          },
+          {
+            "entity": "Commit/github.com/paastry/svc-pricing-api@a1f9c2d",
+            "title": "Fix rounding error in tiered discount calculation",
+            "score": 0.129099,
+            "matched_by": "fulltext"
+          },
+          {
+            "entity": "Service/tier-config-service",
+            "title": "Tier Configuration Service",
+            "score": 0.129099,
+            "matched_by": "fulltext"
+          },
+          {
+            "entity": "Commit/github.com/paastry/svc-pricing-api@f00dfed",
+            "title": "Attempt rounding fix for discount tiers (reverted)",
+            "score": 0.11547,
+            "matched_by": "fulltext"
           }
         ],
-        "facets": {
-          "product": {
-            "shop": 3
-          },
-          "veracity": {
-            "verified": 3
-          }
-        },
-        "rendered": "### Knowledge \u2014 3 notes \u00b7 scope commerce/shop \u00b7 filters validity=current veracity=verified\n1. Payment failure taxonomy   [verified]\n   > \"Payment failures are classified terminal, retryable, or ambiguous; only retryable failures may be retried.\"\n   note n-0002@1 \u00b7 source confluence:PAY-4412@7\n2. Idempotency guarantees in the settlement path   [verified \u00b7 valid to 2026-12-31]\n   > \"Settlement writes are idempotent per payment intent, so retries after payment failures must reuse the original idempotency key instead of generating a new one.\"\n   note n-0001@3 \u00b7 source github:acme/payments#docs/settlement.md@a1b2c3d\n3. Retry budgets for downstream calls   [verified]\n   > \"Each downstream call carries a retry budget; exhausting it surfaces terminal failures rather than further retries.\"\n   note n-0003@2 \u00b7 source github:acme/platform#docs/resilience.md@9f8e7d6\nFacets: product{shop:3} \u00b7 veracity{verified:3}\n"
+        "rendered": "### Knowledge \u2014 10 entities \u00b7 domain paastry\n1. Pricing Rounding Design Notes   [DocChunk/pricing-rounding-design-doc \u00b7 fulltext]\n   > \"Design rationale for how tiered discount rounding should behave.\"\n   citations: confluence:PAAS-design-notes#rounding\n2. Pricing API   [Service/pricing-api \u00b7 fulltext]\n   > \"Computes tiered subscription pricing and applies discount rounding rules.\"\n   citations: github:paastry/svc-pricing-api\n3. Alex Chen   [Person/alex-chen \u00b7 fulltext]\n   > \"Engineer on the pricing team; authored the tiered-discount rounding fix.\"\n   citations: docs:people/alex-chen\n4. Pricing API Unit Tests   [TestSuite/pricing-api-unit-tests \u00b7 fulltext]\n   > \"Unit test suite covering tiered discount calculation and rounding behaviour.\"\n   citations: github:paastry/svc-pricing-api#tests\n5. Fix pricing rounding error for tiered discounts   [Story/PAAS-201 \u00b7 fulltext]\n   > \"Customers on tiered discount plans were undercharged due to a rounding error; drove the pricing-api fix.\"\n   citations: jira:PAAS-201\n6. svc-pricing-api   [Repository/paastry/svc-pricing-api \u00b7 fulltext]\n   > \"Source repository for the Pricing API service.\"\n   citations: github:paastry/svc-pricing-api\n7. Pricing Team   [Team/pricing-team \u00b7 fulltext]\n   > \"Owns pricing-api and tier-config-service end to end.\"\n   citations: docs:teams/pricing-team\n8. Fix rounding error in tiered discount calculation   [Commit/github.com/paastry/svc-pricing-api@a1f9c2d \u00b7 fulltext]\n   > \"Corrects a rounding error that undercharged customers on tiered discount plans. Accepted and merged.\"\n   citations: github:paastry/svc-pricing-api@a1f9c2d\n9. Tier Configuration Service   [Service/tier-config-service \u00b7 fulltext]\n   > \"Owns plan tier definitions and discount thresholds consumed by pricing-api.\"\n   citations: github:paastry/svc-tier-config\n10. Attempt rounding fix for discount tiers (reverted)   [Commit/github.com/paastry/svc-pricing-api@f00dfed \u00b7 fulltext]\n   > \"An earlier attempt at fixing tiered discount rounding. Reverted before release; superseded by a1f9c2d.\"\n   citations: github:paastry/svc-pricing-api@f00dfed\n"
       },
       "metrics": {},
       "distribution": {},
+      "latency_ms": 4.7844,
+      "latency_distribution_ms": {
+        "mean": 4.7844,
+        "median": 4.7844,
+        "std_dev": 0.0,
+        "min": 4.7844,
+        "max": 4.7844,
+        "n": 1
+      },
       "invariant_failures": [],
       "passed": true
     },
@@ -565,9 +613,16 @@
       "executions": 1,
       "verdict": "PASS",
       "ranked": [
-        "n-0002",
-        "n-0001",
-        "n-0003"
+        "DocChunk/pricing-rounding-design-doc",
+        "Service/pricing-api",
+        "Person/alex-chen",
+        "TestSuite/pricing-api-unit-tests",
+        "Story/PAAS-201",
+        "Repository/paastry/svc-pricing-api",
+        "Team/pricing-team",
+        "Commit/github.com/paastry/svc-pricing-api@a1f9c2d",
+        "Service/tier-config-service",
+        "Commit/github.com/paastry/svc-pricing-api@f00dfed"
       ],
       "checks": [
         {
@@ -575,89 +630,110 @@
           "status": "ok",
           "detail": "",
           "traceability": "traced",
-          "source": "task statement: 'defining request context and filters'"
+          "source": "mcp-tool-contracts-reference.md \u00a72.1, kb_search argument shape"
         },
         {
           "name": "contract:response_contract_valid",
           "status": "ok",
           "detail": "",
           "traceability": "traced",
-          "source": "Component Guide 4.3 and 11, the response contract carries versioned provenance and facets"
+          "source": "mcp-tool-contracts-reference.md \u00a72.1, SearchHit response shape"
         },
         {
           "name": "format:every_result_has_provenance",
           "status": "ok",
           "detail": "",
           "traceability": "traced",
-          "source": "Component Guide 4.3 and 11, provenance is pinned and carried forward"
+          "source": "mcp-tool-contracts-reference.md Gotcha 5, cite everything"
         }
       ],
       "trace": {
-        "query": "how do we handle retries on payment failures?",
-        "caller": {
-          "department": "commerce",
-          "product": "shop"
-        },
-        "filters": {
-          "veracity": [
-            "verified"
-          ],
-          "validity": "current"
-        },
+        "query": "why was the pricing rounding bug fixed?",
+        "domain": "paastry",
         "tool_call": {
-          "tool": "knowledge_retrieve",
+          "tool": "kb_search",
           "args": {
-            "query": "how do we handle retries on payment failures?",
-            "scope": {
-              "department": "commerce",
-              "product": "shop"
-            },
-            "filters": {
-              "validity": "current",
-              "veracity": [
-                "verified"
-              ]
-            },
-            "k": 10,
-            "format": "full"
+            "domain": "paastry",
+            "query": "why was the pricing rounding bug fixed?",
+            "limit": 10
           }
         },
         "calls": 1,
         "results": [
           {
-            "note": "n-0002",
-            "v": 1,
-            "score": 0.301511,
-            "veracity": "verified",
-            "title": "Payment failure taxonomy"
+            "entity": "DocChunk/pricing-rounding-design-doc",
+            "title": "Pricing Rounding Design Notes",
+            "score": 0.316228,
+            "matched_by": "fulltext"
           },
           {
-            "note": "n-0001",
-            "v": 3,
-            "score": 0.3,
-            "veracity": "verified",
-            "title": "Idempotency guarantees in the settlement path"
+            "entity": "Service/pricing-api",
+            "title": "Pricing API",
+            "score": 0.298142,
+            "matched_by": "fulltext"
           },
           {
-            "note": "n-0003",
-            "v": 2,
-            "score": 0.25,
-            "veracity": "verified",
-            "title": "Retry budgets for downstream calls"
+            "entity": "Person/alex-chen",
+            "title": "Alex Chen",
+            "score": 0.282843,
+            "matched_by": "fulltext"
+          },
+          {
+            "entity": "TestSuite/pricing-api-unit-tests",
+            "title": "Pricing API Unit Tests",
+            "score": 0.258199,
+            "matched_by": "fulltext"
+          },
+          {
+            "entity": "Story/PAAS-201",
+            "title": "Fix pricing rounding error for tiered discounts",
+            "score": 0.239046,
+            "matched_by": "fulltext"
+          },
+          {
+            "entity": "Repository/paastry/svc-pricing-api",
+            "title": "svc-pricing-api",
+            "score": 0.182574,
+            "matched_by": "fulltext"
+          },
+          {
+            "entity": "Team/pricing-team",
+            "title": "Pricing Team",
+            "score": 0.158114,
+            "matched_by": "fulltext"
+          },
+          {
+            "entity": "Commit/github.com/paastry/svc-pricing-api@a1f9c2d",
+            "title": "Fix rounding error in tiered discount calculation",
+            "score": 0.129099,
+            "matched_by": "fulltext"
+          },
+          {
+            "entity": "Service/tier-config-service",
+            "title": "Tier Configuration Service",
+            "score": 0.129099,
+            "matched_by": "fulltext"
+          },
+          {
+            "entity": "Commit/github.com/paastry/svc-pricing-api@f00dfed",
+            "title": "Attempt rounding fix for discount tiers (reverted)",
+            "score": 0.11547,
+            "matched_by": "fulltext"
           }
         ],
-        "facets": {
-          "product": {
-            "shop": 3
-          },
-          "veracity": {
-            "verified": 3
-          }
-        },
-        "rendered": "### Knowledge \u2014 3 notes \u00b7 scope commerce/shop \u00b7 filters validity=current veracity=verified\n1. Payment failure taxonomy   [verified]\n   > \"Payment failures are classified terminal, retryable, or ambiguous; only retryable failures may be retried.\"\n   note n-0002@1 \u00b7 source confluence:PAY-4412@7\n2. Idempotency guarantees in the settlement path   [verified \u00b7 valid to 2026-12-31]\n   > \"Settlement writes are idempotent per payment intent, so retries after payment failures must reuse the original idempotency key instead of generating a new one.\"\n   note n-0001@3 \u00b7 source github:acme/payments#docs/settlement.md@a1b2c3d\n3. Retry budgets for downstream calls   [verified]\n   > \"Each downstream call carries a retry budget; exhausting it surfaces terminal failures rather than further retries.\"\n   note n-0003@2 \u00b7 source github:acme/platform#docs/resilience.md@9f8e7d6\nFacets: product{shop:3} \u00b7 veracity{verified:3}\n"
+        "rendered": "### Knowledge \u2014 10 entities \u00b7 domain paastry\n1. Pricing Rounding Design Notes   [DocChunk/pricing-rounding-design-doc \u00b7 fulltext]\n   > \"Design rationale for how tiered discount rounding should behave.\"\n   citations: confluence:PAAS-design-notes#rounding\n2. Pricing API   [Service/pricing-api \u00b7 fulltext]\n   > \"Computes tiered subscription pricing and applies discount rounding rules.\"\n   citations: github:paastry/svc-pricing-api\n3. Alex Chen   [Person/alex-chen \u00b7 fulltext]\n   > \"Engineer on the pricing team; authored the tiered-discount rounding fix.\"\n   citations: docs:people/alex-chen\n4. Pricing API Unit Tests   [TestSuite/pricing-api-unit-tests \u00b7 fulltext]\n   > \"Unit test suite covering tiered discount calculation and rounding behaviour.\"\n   citations: github:paastry/svc-pricing-api#tests\n5. Fix pricing rounding error for tiered discounts   [Story/PAAS-201 \u00b7 fulltext]\n   > \"Customers on tiered discount plans were undercharged due to a rounding error; drove the pricing-api fix.\"\n   citations: jira:PAAS-201\n6. svc-pricing-api   [Repository/paastry/svc-pricing-api \u00b7 fulltext]\n   > \"Source repository for the Pricing API service.\"\n   citations: github:paastry/svc-pricing-api\n7. Pricing Team   [Team/pricing-team \u00b7 fulltext]\n   > \"Owns pricing-api and tier-config-service end to end.\"\n   citations: docs:teams/pricing-team\n8. Fix rounding error in tiered discount calculation   [Commit/github.com/paastry/svc-pricing-api@a1f9c2d \u00b7 fulltext]\n   > \"Corrects a rounding error that undercharged customers on tiered discount plans. Accepted and merged.\"\n   citations: github:paastry/svc-pricing-api@a1f9c2d\n9. Tier Configuration Service   [Service/tier-config-service \u00b7 fulltext]\n   > \"Owns plan tier definitions and discount thresholds consumed by pricing-api.\"\n   citations: github:paastry/svc-tier-config\n10. Attempt rounding fix for discount tiers (reverted)   [Commit/github.com/paastry/svc-pricing-api@f00dfed \u00b7 fulltext]\n   > \"An earlier attempt at fixing tiered discount rounding. Reverted before release; superseded by a1f9c2d.\"\n   citations: github:paastry/svc-pricing-api@f00dfed\n"
       },
       "metrics": {},
       "distribution": {},
+      "latency_ms": 4.6605,
+      "latency_distribution_ms": {
+        "mean": 4.6605,
+        "median": 4.6605,
+        "std_dev": 0.0,
+        "min": 4.6605,
+        "max": 4.6605,
+        "n": 1
+      },
       "invariant_failures": [],
       "passed": true
     },
@@ -666,9 +742,16 @@
       "executions": 1,
       "verdict": "PASS",
       "ranked": [
-        "n-0002",
-        "n-0001",
-        "n-0003"
+        "DocChunk/pricing-rounding-design-doc",
+        "Service/pricing-api",
+        "Person/alex-chen",
+        "TestSuite/pricing-api-unit-tests",
+        "Story/PAAS-201",
+        "Repository/paastry/svc-pricing-api",
+        "Team/pricing-team",
+        "Commit/github.com/paastry/svc-pricing-api@a1f9c2d",
+        "Service/tier-config-service",
+        "Commit/github.com/paastry/svc-pricing-api@f00dfed"
       ],
       "checks": [
         {
@@ -676,96 +759,117 @@
           "status": "ok",
           "detail": "",
           "traceability": "traced",
-          "source": "task statement: 'defining request context and filters'"
+          "source": "mcp-tool-contracts-reference.md \u00a72.1, kb_search argument shape"
         },
         {
           "name": "contract:response_contract_valid",
           "status": "ok",
           "detail": "",
           "traceability": "traced",
-          "source": "Component Guide 4.3 and 11, the response contract carries versioned provenance and facets"
+          "source": "mcp-tool-contracts-reference.md \u00a72.1, SearchHit response shape"
         },
         {
           "name": "contract:server_rejects_invalid_request",
           "status": "ok",
           "detail": "",
           "traceability": "traced",
-          "source": "Component Guide 5.4 and 11, enforcement is server side, clients are never trusted"
+          "source": "mcp-tool-contracts-reference.md, extra=forbid enforcement is server side, clients are never trusted"
         },
         {
           "name": "format:every_result_has_provenance",
           "status": "ok",
           "detail": "",
           "traceability": "traced",
-          "source": "Component Guide 4.3 and 11, provenance is pinned and carried forward"
+          "source": "mcp-tool-contracts-reference.md Gotcha 5, cite everything"
         }
       ],
       "trace": {
-        "query": "how do we handle retries on payment failures?",
-        "caller": {
-          "department": "commerce",
-          "product": "shop"
-        },
-        "filters": {
-          "veracity": [
-            "verified"
-          ],
-          "validity": "current"
-        },
+        "query": "why was the pricing rounding bug fixed?",
+        "domain": "paastry",
         "tool_call": {
-          "tool": "knowledge_retrieve",
+          "tool": "kb_search",
           "args": {
-            "query": "how do we handle retries on payment failures?",
-            "scope": {
-              "department": "commerce",
-              "product": "shop"
-            },
-            "filters": {
-              "validity": "current",
-              "veracity": [
-                "verified"
-              ]
-            },
-            "k": 10,
-            "format": "full"
+            "domain": "paastry",
+            "query": "why was the pricing rounding bug fixed?",
+            "limit": 10
           }
         },
         "calls": 1,
         "results": [
           {
-            "note": "n-0002",
-            "v": 1,
-            "score": 0.301511,
-            "veracity": "verified",
-            "title": "Payment failure taxonomy"
+            "entity": "DocChunk/pricing-rounding-design-doc",
+            "title": "Pricing Rounding Design Notes",
+            "score": 0.316228,
+            "matched_by": "fulltext"
           },
           {
-            "note": "n-0001",
-            "v": 3,
-            "score": 0.3,
-            "veracity": "verified",
-            "title": "Idempotency guarantees in the settlement path"
+            "entity": "Service/pricing-api",
+            "title": "Pricing API",
+            "score": 0.298142,
+            "matched_by": "fulltext"
           },
           {
-            "note": "n-0003",
-            "v": 2,
-            "score": 0.25,
-            "veracity": "verified",
-            "title": "Retry budgets for downstream calls"
+            "entity": "Person/alex-chen",
+            "title": "Alex Chen",
+            "score": 0.282843,
+            "matched_by": "fulltext"
+          },
+          {
+            "entity": "TestSuite/pricing-api-unit-tests",
+            "title": "Pricing API Unit Tests",
+            "score": 0.258199,
+            "matched_by": "fulltext"
+          },
+          {
+            "entity": "Story/PAAS-201",
+            "title": "Fix pricing rounding error for tiered discounts",
+            "score": 0.239046,
+            "matched_by": "fulltext"
+          },
+          {
+            "entity": "Repository/paastry/svc-pricing-api",
+            "title": "svc-pricing-api",
+            "score": 0.182574,
+            "matched_by": "fulltext"
+          },
+          {
+            "entity": "Team/pricing-team",
+            "title": "Pricing Team",
+            "score": 0.158114,
+            "matched_by": "fulltext"
+          },
+          {
+            "entity": "Commit/github.com/paastry/svc-pricing-api@a1f9c2d",
+            "title": "Fix rounding error in tiered discount calculation",
+            "score": 0.129099,
+            "matched_by": "fulltext"
+          },
+          {
+            "entity": "Service/tier-config-service",
+            "title": "Tier Configuration Service",
+            "score": 0.129099,
+            "matched_by": "fulltext"
+          },
+          {
+            "entity": "Commit/github.com/paastry/svc-pricing-api@f00dfed",
+            "title": "Attempt rounding fix for discount tiers (reverted)",
+            "score": 0.11547,
+            "matched_by": "fulltext"
           }
         ],
-        "facets": {
-          "product": {
-            "shop": 3
-          },
-          "veracity": {
-            "verified": 3
-          }
-        },
-        "rendered": "### Knowledge \u2014 3 notes \u00b7 scope commerce/shop \u00b7 filters validity=current veracity=verified\n1. Payment failure taxonomy   [verified]\n   > \"Payment failures are classified terminal, retryable, or ambiguous; only retryable failures may be retried.\"\n   note n-0002@1 \u00b7 source confluence:PAY-4412@7\n2. Idempotency guarantees in the settlement path   [verified \u00b7 valid to 2026-12-31]\n   > \"Settlement writes are idempotent per payment intent, so retries after payment failures must reuse the original idempotency key instead of generating a new one.\"\n   note n-0001@3 \u00b7 source github:acme/payments#docs/settlement.md@a1b2c3d\n3. Retry budgets for downstream calls   [verified]\n   > \"Each downstream call carries a retry budget; exhausting it surfaces terminal failures rather than further retries.\"\n   note n-0003@2 \u00b7 source github:acme/platform#docs/resilience.md@9f8e7d6\nFacets: product{shop:3} \u00b7 veracity{verified:3}\n"
+        "rendered": "### Knowledge \u2014 10 entities \u00b7 domain paastry\n1. Pricing Rounding Design Notes   [DocChunk/pricing-rounding-design-doc \u00b7 fulltext]\n   > \"Design rationale for how tiered discount rounding should behave.\"\n   citations: confluence:PAAS-design-notes#rounding\n2. Pricing API   [Service/pricing-api \u00b7 fulltext]\n   > \"Computes tiered subscription pricing and applies discount rounding rules.\"\n   citations: github:paastry/svc-pricing-api\n3. Alex Chen   [Person/alex-chen \u00b7 fulltext]\n   > \"Engineer on the pricing team; authored the tiered-discount rounding fix.\"\n   citations: docs:people/alex-chen\n4. Pricing API Unit Tests   [TestSuite/pricing-api-unit-tests \u00b7 fulltext]\n   > \"Unit test suite covering tiered discount calculation and rounding behaviour.\"\n   citations: github:paastry/svc-pricing-api#tests\n5. Fix pricing rounding error for tiered discounts   [Story/PAAS-201 \u00b7 fulltext]\n   > \"Customers on tiered discount plans were undercharged due to a rounding error; drove the pricing-api fix.\"\n   citations: jira:PAAS-201\n6. svc-pricing-api   [Repository/paastry/svc-pricing-api \u00b7 fulltext]\n   > \"Source repository for the Pricing API service.\"\n   citations: github:paastry/svc-pricing-api\n7. Pricing Team   [Team/pricing-team \u00b7 fulltext]\n   > \"Owns pricing-api and tier-config-service end to end.\"\n   citations: docs:teams/pricing-team\n8. Fix rounding error in tiered discount calculation   [Commit/github.com/paastry/svc-pricing-api@a1f9c2d \u00b7 fulltext]\n   > \"Corrects a rounding error that undercharged customers on tiered discount plans. Accepted and merged.\"\n   citations: github:paastry/svc-pricing-api@a1f9c2d\n9. Tier Configuration Service   [Service/tier-config-service \u00b7 fulltext]\n   > \"Owns plan tier definitions and discount thresholds consumed by pricing-api.\"\n   citations: github:paastry/svc-tier-config\n10. Attempt rounding fix for discount tiers (reverted)   [Commit/github.com/paastry/svc-pricing-api@f00dfed \u00b7 fulltext]\n   > \"An earlier attempt at fixing tiered discount rounding. Reverted before release; superseded by a1f9c2d.\"\n   citations: github:paastry/svc-pricing-api@f00dfed\n"
       },
       "metrics": {},
       "distribution": {},
+      "latency_ms": 4.6366,
+      "latency_distribution_ms": {
+        "mean": 4.6366,
+        "median": 4.6366,
+        "std_dev": 0.0,
+        "min": 4.6366,
+        "max": 4.6366,
+        "n": 1
+      },
       "invariant_failures": [],
       "passed": true
     }

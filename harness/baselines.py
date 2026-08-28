@@ -253,6 +253,16 @@ def build_run_manifest(
                     "regression_policy": REGRESSION_POLICY_VERSION,
                     "absolute_drop_tolerance": DEFAULT_TOLERANCE,
                 },
+                # Report-only: compare_records()/validate_record() are only ever
+                # called with result_family="ranking" (see runner.py), so this
+                # profile is descriptive metadata, never read for compatibility
+                # or regression gating. No regression_policy/tolerance until a
+                # real threshold is approved -- see LATENCY-MEASUREMENT-PLAN.md.
+                "latency": {
+                    "profile_version": "latency-v1",
+                    "measurement": "wall_clock_ms_per_search_call",
+                    "gated": False,
+                },
             },
         },
         "target": target,

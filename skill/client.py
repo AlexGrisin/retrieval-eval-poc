@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
 from typing import Any, Protocol
 
 from .contracts import Citation, Entity, SearchHit, SearchRequest, SearchResponse
@@ -30,19 +31,33 @@ class SpyClient:
 
     This is what makes L1 assertions real rather than circular: we check what
     the skill *sent*, not just what the backend chose to return.
+
+    Also times each call. Transport-agnostic on purpose: wrapping here (not in
+    the runner) captures MCP/REST round-trip and serialization overhead too,
+    not just the fake backend's own compute time -- real signal even before a
+    real server exists, per LATENCY-MEASUREMENT-PLAN.md.
     """
 
     def __init__(self, inner: KnowledgeClient) -> None:
         self._inner = inner
         self.calls: list[dict[str, Any]] = []
+        self.durations_ms: list[float] = []
 
     def search(self, request: SearchRequest) -> SearchResponse:
         self.calls.append(request.as_tool_call())
-        return self._inner.search(request)
+        start = time.perf_counter()
+        try:
+            return self._inner.search(request)
+        finally:
+            self.durations_ms.append((time.perf_counter() - start) * 1000)
 
     @property
     def last_call(self) -> dict[str, Any] | None:
         return self.calls[-1] if self.calls else None
+
+    @property
+    def last_duration_ms(self) -> float | None:
+        return self.durations_ms[-1] if self.durations_ms else None
 
 
 class MCPKnowledgeClient:
