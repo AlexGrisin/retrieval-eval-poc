@@ -1,17 +1,24 @@
-title: Reverted commit must not outrank the accepted fix
+title: A lexically confusable story must not outrank the on-topic result
 why: >-
-  Commit f00dfed (a reverted attempt) is a strong lexical match for "rounding
-  fix" -- title and snippet both echo the query closely. A similarity-only
-  system can rank it first. Excluding a reverted entity outright would need
-  the supersedes-style relationship, which is a kb_related concern (deferred);
-  this case checks that ranking alone still prefers the accepted commit.
+  Story/PAAS-201 ("Volume-tiered discounts for wholesale partners") is a
+  strong fulltext match for "tiered discount" -- its title echoes the query
+  closely -- but it is an unrelated feature story, not the rounding fix. A
+  similarity-only system can rank it first. This case checks that ranking
+  alone still prefers the on-topic result.
+
+  Originally written around a reverted commit (f00dfed) that does not exist
+  in the live corpus; no revert/supersede scenario exists there at all (no
+  repository in the live "paastry" domain has one -- verified 2026-09-17).
+  Repurposed around this confirmed, live, deterministic tie instead, so the
+  case still exercises the same property -- lexical overlap must not beat
+  topical relevance -- with real data.
 
 query: what fixed the tiered discount rounding error?
 domain: paastry
 limit: 10
 
 expect:
-  expected_first_result: Commit/github.com/paastry/svc-pricing-api@a1f9c2d
+  expected_first_result: DocChunk/guide-quotes-api#2
   relevant:
-    - {entity: Commit/github.com/paastry/svc-pricing-api@a1f9c2d, grade: 2}
-    - {entity: Commit/github.com/paastry/svc-pricing-api@f00dfed, grade: 0}
+    - {entity: DocChunk/guide-quotes-api#2, grade: 1}
+    - {entity: Story/PAAS-201, grade: 0}

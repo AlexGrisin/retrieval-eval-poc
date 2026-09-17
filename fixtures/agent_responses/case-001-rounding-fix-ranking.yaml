@@ -1,9 +1,9 @@
 status: answered
 answer: >-
-  Story PAAS-201 tracked a rounding error in the tiered discount calculation that
-  undercharged customers. Commit a1f9c2d, implementing that story, corrected the
-  rounding behaviour.
+  Tier boundaries were rounding down, drifting one cent below the agreed tier
+  price. Story PAAS-202 tracked the fix to round half-up; the tier-config-cache
+  design doc records that the /v1/tiers API now enforces half-up rounding to
+  whole cents.
 citations:
-  - {label: Story, key: PAAS-201}
-  - {label: Commit, key: github.com/paastry/svc-pricing-api@a1f9c2d}
-  - {label: DocChunk, key: pricing-rounding-design-doc}
+  - {label: Story, key: PAAS-202}
+  - {label: DocChunk, key: design-tier-config-cache#2}

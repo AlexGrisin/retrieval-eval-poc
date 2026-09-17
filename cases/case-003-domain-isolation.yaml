@@ -4,15 +4,15 @@ why: >-
   results -- not an error." A case whose correct answer is the empty set
   catches a skill that silently drops or defaults the domain argument.
 
-query: why was the pricing rounding bug fixed?
+query: why was tier boundary rounding changed to half-up?
 domain: unrelated-domain
 limit: 10
 
 expect:
   must_not_return:
-    - Story/PAAS-201
-    - Commit/github.com/paastry/svc-pricing-api@a1f9c2d
-    - DocChunk/pricing-rounding-design-doc
+    - Story/PAAS-202
+    - DocChunk/design-tier-config-cache#2
+    - PullRequest/github.com/paastry/svc-pricing-engine#14
 
 # Asserted as well as the result set, so a cooperative backend cannot pass this
 # case on the skill's behalf: the domain must actually have been sent.
@@ -20,5 +20,5 @@ expect_tool_call:
   tool: kb_search
   args:
     domain: unrelated-domain
-    query: why was the pricing rounding bug fixed?
+    query: why was tier boundary rounding changed to half-up?
     limit: 10

@@ -127,7 +127,7 @@ def test_missing_required_citation_fails_deterministically(
     assert failed == {
         "answer:required_citations": (
             "answer is missing required citations: "
-            "['DocChunk/pricing-rounding-design-doc']"
+            "['DocChunk/design-tier-config-cache#2']"
         )
     }
 
@@ -137,9 +137,7 @@ def test_forbidden_citation_fails_even_when_it_was_not_retrieved(
     synthetic_case, synthetic_retrieval_result
 ):
     response = _response_fixture("case-001-rounding-fix-ranking")
-    response["citations"].append(
-        {"label": "Feature", "key": "tiered-discount-calculation"}
-    )
+    response["citations"].append({"label": "Story", "key": "PAAS-201"})
 
     run = _evaluate(response, synthetic_retrieval_result, synthetic_case)
     failed = {check.name for check in run.checks if check.status == "fail"}
@@ -268,7 +266,7 @@ def test_valid_captured_run_is_judged_without_rerunning_retrieval(
     assert all(outcome.record and outcome.record.score == 1.0 for outcome in outcomes)
     assert all(run.question in prompt for prompt in gateway.prompts)
     assert all('"retrieved_context"' in prompt for prompt in gateway.prompts)
-    assert all("Story/PAAS-201" in prompt for prompt in gateway.prompts)
+    assert all("Story/PAAS-202" in prompt for prompt in gateway.prompts)
 
 
 @framework_id("synthetic:answer:case_declared_rubrics_authoritative")

@@ -6,110 +6,114 @@
 # `relationships` are not read by kb_search's fake backend (kb_search has no graph
 # traversal) -- they're here so the kb_fetch/kb_related follow-up phase has real
 # edges to walk instead of a second fixture rewrite.
-version: fixture-2026-08-28.1
+#
+# Entities and wording were realigned 2026-09-17 against the live
+# sysco-context-layer-knowledge-server's actual current "paastry" corpus
+# generation (Story/PAAS-202, DocChunk/design-tier-config-cache#2,
+# PullRequest/github.com/paastry/svc-pricing-engine#14, and Story/PAAS-201 as
+# a confusable distractor) -- the previous generation this fixture mirrored
+# (Story/PAAS-201 as the rounding fix, Commit@a1f9c2d) no longer exists there.
+# Snippet wording is still hand-tuned for this fake's plain token-overlap
+# scorer (no stemming, no semantics), not copied verbatim from the live
+# server's prose -- see skill/fake_server.py.
+version: fixture-2026-09-17.1
 
 domain: paastry
 
 entities:
   - label: Service
-    key: pricing-api
-    title: Pricing API
+    key: pricing-engine
+    title: pricing-engine
     snippet: >-
-      Computes tiered subscription pricing and applies discount rounding rules.
-    citations: [{source_system: github, reference: "paastry/svc-pricing-api"}]
+      Applies volume-tiered discounts and tier boundary rounding at quote time.
+    citations: [{source_system: github, reference: "paastry/svc-pricing-engine"}]
 
   - label: Service
     key: tier-config-service
     title: Tier Configuration Service
     snippet: >-
-      Owns plan tier definitions and discount thresholds consumed by pricing-api.
+      Owns plan tier definitions and discount thresholds consumed by pricing-engine.
     citations: [{source_system: github, reference: "paastry/svc-tier-config"}]
 
   - label: Team
     key: pricing-team
     title: Pricing Team
-    snippet: Owns pricing-api and tier-config-service end to end.
+    snippet: Owns pricing-engine and tier-config-service end to end.
     citations: [{source_system: docs, reference: "teams/pricing-team"}]
 
   - label: Person
-    key: alex-chen
-    title: Alex Chen
-    snippet: Engineer on the pricing team; authored the tiered-discount rounding fix.
-    citations: [{source_system: docs, reference: "people/alex-chen"}]
+    key: felix-custard
+    title: Felix Custard
+    snippet: Engineer on the pricing team; authored the tier boundary rounding fix.
+    citations: [{source_system: docs, reference: "people/felix-custard"}]
 
   - label: Repository
-    key: paastry/svc-pricing-api
-    title: svc-pricing-api
-    snippet: Source repository for the Pricing API service.
-    citations: [{source_system: github, reference: "paastry/svc-pricing-api"}]
+    key: paastry/svc-pricing-engine
+    title: svc-pricing-engine
+    snippet: Source repository for the pricing-engine service.
+    citations: [{source_system: github, reference: "paastry/svc-pricing-engine"}]
 
-  - label: Commit
-    key: github.com/paastry/svc-pricing-api@a1f9c2d
-    title: Fix rounding error in tiered discount calculation
+  - label: Story
+    key: PAAS-202
+    title: Round tier boundaries half-up
     snippet: >-
-      Corrects a rounding error that undercharged customers on tiered discount
-      plans. Accepted and merged.
-    citations:
-      - {source_system: github, reference: "paastry/svc-pricing-api@a1f9c2d"}
-
-  - label: Commit
-    key: github.com/paastry/svc-pricing-api@f00dfed
-    title: Attempt rounding fix for discount tiers (reverted)
-    snippet: >-
-      An earlier attempt at fixing tiered discount rounding. Reverted before
-      release; superseded by a1f9c2d.
-    citations:
-      - {source_system: github, reference: "paastry/svc-pricing-api@f00dfed"}
+      Tier boundary rounding must be changed to round half-up to match finance's
+      spreadsheet behaviour; quotes currently drift one cent below the agreed
+      tier price.
+    citations: [{source_system: jira, reference: "PAAS-202"}]
 
   - label: Story
     key: PAAS-201
-    title: Fix pricing rounding error for tiered discounts
+    title: Volume-tiered discounts for wholesale partners
     snippet: >-
-      Customers on tiered discount plans were undercharged due to a rounding
-      error; drove the pricing-api fix.
+      Wholesale partners need volume-tiered discounts applied at quote time in
+      pricing-engine, so the final price is visible before an order is placed.
     citations: [{source_system: jira, reference: "PAAS-201"}]
 
-  - label: Feature
-    key: tiered-discount-calculation
-    title: Tiered Discount Calculation
-    snippet: Computes the discount percentage applied at each subscription tier.
-    citations:
-      - {source_system: docs, reference: "features/tiered-discount-calculation"}
-
-  - label: TestSuite
-    key: pricing-api-unit-tests
-    title: Pricing API Unit Tests
+  - label: PullRequest
+    key: github.com/paastry/svc-pricing-engine#14
+    title: "Half-up rounding for tier boundaries"
     snippet: >-
-      Unit test suite covering tiered discount calculation and rounding
-      behaviour.
-    citations: [{source_system: github, reference: "paastry/svc-pricing-api#tests"}]
+      Pull request implementing half-up rounding for tier boundaries, closing
+      out the one-cent drift reported against the agreed tier price.
+    citations: [{source_system: github, reference: "paastry/svc-pricing-engine#14"}]
 
   - label: DocChunk
-    key: pricing-rounding-design-doc
-    title: Pricing Rounding Design Notes
-    snippet: Design rationale for how tiered discount rounding should behave.
-    citations:
-      - {source_system: confluence, reference: "PAAS-design-notes#rounding"}
-
-  - label: PullRequest
-    key: paastry/svc-pricing-api#482
-    title: "PR #482: Fix rounding error in tiered discount calculation"
+    key: design-tier-config-cache#2
+    title: "Design: tier table publication and cache invalidation"
     snippet: >-
-      Pull request that merged the tiered-discount rounding fix authored by
-      Alex Chen.
-    citations: [{source_system: github, reference: "paastry/svc-pricing-api#482"}]
+      Editing is self-service for pricing analysts (PAAS-203); the /v1/tiers
+      API rejects tables whose boundaries do not round half-up to whole cents
+      (TCF-310).
+    citations: [{source_system: docs, reference: "design-tier-config-cache#2"}]
+
+  # A strong lexical match for "tiered discount" (case-002's confusable-ranking
+  # case) that is actually about the rounding fix, not the unrelated PAAS-201
+  # feature -- see cases/case-002-superseded-knowledge.yaml.
+  - label: DocChunk
+    key: guide-quotes-api#2
+    title: "API guide: quoting with tiered discounts"
+    snippet: >-
+      The discount block in a quote response carries the tier boundary; a
+      rounding error that undercharged wholesale quotes was fixed by rounding
+      tier boundaries half-up (see PAAS-202).
+    citations: [{source_system: docs, reference: "guide-quotes-api#2"}]
+
+  - label: TestSuite
+    key: pricing-engine-unit-tests
+    title: Pricing Engine Unit Tests
+    snippet: >-
+      Unit test suite covering tier boundary rounding and volume-tiered
+      discount behaviour.
+    citations: [{source_system: github, reference: "paastry/svc-pricing-engine#tests"}]
 
 relationships:
-  - {from: {label: Team, key: pricing-team}, type: OWNS, to: {label: Service, key: pricing-api}}
+  - {from: {label: Team, key: pricing-team}, type: OWNS, to: {label: Service, key: pricing-engine}}
   - {from: {label: Team, key: pricing-team}, type: OWNS, to: {label: Service, key: tier-config-service}}
-  - {from: {label: Person, key: alex-chen}, type: MEMBER_OF, to: {label: Team, key: pricing-team}}
-  - {from: {label: Commit, key: "github.com/paastry/svc-pricing-api@a1f9c2d"}, type: IN_REPOSITORY, to: {label: Repository, key: "paastry/svc-pricing-api"}}
-  - {from: {label: Commit, key: "github.com/paastry/svc-pricing-api@f00dfed"}, type: IN_REPOSITORY, to: {label: Repository, key: "paastry/svc-pricing-api"}}
-  - {from: {label: Person, key: alex-chen}, type: AUTHORED, to: {label: Commit, key: "github.com/paastry/svc-pricing-api@a1f9c2d"}}
-  - {from: {label: Commit, key: "github.com/paastry/svc-pricing-api@a1f9c2d"}, type: PART_OF, to: {label: Story, key: PAAS-201}}
-  - {from: {label: Commit, key: "github.com/paastry/svc-pricing-api@a1f9c2d"}, type: IMPLEMENTS, to: {label: Story, key: PAAS-201}}
-  - {from: {label: Story, key: PAAS-201}, type: DELIVERS, to: {label: Feature, key: tiered-discount-calculation}}
-  - {from: {label: Service, key: pricing-api}, type: DEPENDS_ON, to: {label: Service, key: tier-config-service}}
-  - {from: {label: TestSuite, key: pricing-api-unit-tests}, type: COVERS, to: {label: Feature, key: tiered-discount-calculation}}
-  - {from: {label: DocChunk, key: pricing-rounding-design-doc}, type: DESCRIBES, to: {label: Feature, key: tiered-discount-calculation}}
-  - {from: {label: PullRequest, key: "paastry/svc-pricing-api#482"}, type: IMPLEMENTS, to: {label: Story, key: PAAS-201}}
+  - {from: {label: Person, key: felix-custard}, type: MEMBER_OF, to: {label: Team, key: pricing-team}}
+  - {from: {label: PullRequest, key: "github.com/paastry/svc-pricing-engine#14"}, type: IN_REPOSITORY, to: {label: Repository, key: "paastry/svc-pricing-engine"}}
+  - {from: {label: PullRequest, key: "github.com/paastry/svc-pricing-engine#14"}, type: IMPLEMENTS, to: {label: Story, key: PAAS-202}}
+  - {from: {label: Person, key: felix-custard}, type: AUTHORED, to: {label: PullRequest, key: "github.com/paastry/svc-pricing-engine#14"}}
+  - {from: {label: Service, key: pricing-engine}, type: DEPENDS_ON, to: {label: Service, key: tier-config-service}}
+  - {from: {label: TestSuite, key: pricing-engine-unit-tests}, type: COVERS, to: {label: Story, key: PAAS-202}}
+  - {from: {label: DocChunk, key: "design-tier-config-cache#2"}, type: DESCRIBES, to: {label: Story, key: PAAS-202}}

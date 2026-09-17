@@ -3,30 +3,43 @@ why: >-
   The baseline metric case, mirroring the contract's own "why was this code
   changed?" recipe (kb_search the commit -> kb_related to the story -- the
   kb_related hop is deferred, so this case grades kb_search's own ranking of
-  the story, commit, and design doc together). Graded relevance, so nDCG can
+  the story, PR, and design doc together). Graded relevance, so nDCG can
   distinguish "found the driving story" from "found it and ranked it first".
 
-query: why was the pricing rounding bug fixed?
+  Verified against the live knowledge-server (2026-09-17): the corpus
+  generation this case originally targeted (Story/PAAS-201 as the rounding
+  fix, Commit@a1f9c2d, DocChunk/pricing-rounding-design-doc) is gone --
+  PAAS-201 now names an unrelated story ("Volume-tiered discounts for
+  wholesale partners") and the commit and doc chunk no longer exist at all.
+  Story/PAAS-202 ("Round tier boundaries half-up") is the real, current
+  rounding-fix story; DocChunk/design-tier-config-cache#2 and
+  PullRequest/github.com/paastry/svc-pricing-engine#14 are its confirmed,
+  live-verified neighbours. The PR does not rank in the live top 10 for this
+  natural-language query (only the story and the doc do) -- graded relevant
+  anyway so recall@10 honestly reports that gap instead of hiding it.
+
+query: why was tier boundary rounding changed to half-up?
 domain: paastry
 limit: 10
 
 expect:
   relevant:
-    - {entity: Story/PAAS-201, grade: 2}                                       # the actual answer
-    - {entity: Commit/github.com/paastry/svc-pricing-api@a1f9c2d, grade: 1}     # the implementing commit
-    - {entity: DocChunk/pricing-rounding-design-doc, grade: 1}                  # useful background
+    - {entity: Story/PAAS-202, grade: 2}                                                  # the actual answer
+    - {entity: DocChunk/design-tier-config-cache#2, grade: 1}                              # useful background
+    - {entity: PullRequest/github.com/paastry/svc-pricing-engine#14, grade: 1}             # the implementing PR
 
 answer_evaluation:
   expect:
     status: answered
     required_citations:
-      - {label: Story, key: PAAS-201}
-      - {label: Commit, key: github.com/paastry/svc-pricing-api@a1f9c2d}
-      - {label: DocChunk, key: pricing-rounding-design-doc}
+      - {label: Story, key: PAAS-202}
+      - {label: DocChunk, key: design-tier-config-cache#2}
     must_not_cite:
-      - {label: Feature, key: tiered-discount-calculation}
+      - {label: Story, key: PAAS-201}   # real, existing, but a different feature entirely
   rubrics: [faithfulness, relevancy, answer_correctness]
   reference_answer: >-
-    The tiered discount calculation undercharged customers due to a rounding error.
-    Story PAAS-201 tracked the fix, implemented in commit a1f9c2d, which corrected
-    the rounding behaviour.
+    Tier boundaries were rounding down, so quotes drifted one cent below the
+    agreed tier price. Story PAAS-202 tracked the fix to round tier boundaries
+    half-up, matching finance's spreadsheet behaviour; the tier-config-cache
+    design doc records that the /v1/tiers API now rejects any table whose
+    boundaries do not round half-up to whole cents (TCF-310).
