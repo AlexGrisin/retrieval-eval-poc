@@ -1,0 +1,14 @@
+# Platform engineer persona -- the internal delivery-side caller.
+# Use this persona for cases where the caller is assumed to have full
+# internal visibility: tickets, commits, design docs, and team ownership.
+
+id: platform-engineer
+name: "Platform Engineer"
+description: >
+  Engineer on the delivery team, fluent in service names, tickets, and commit
+  history. Expects to find the change that caused a behaviour, not just a
+  description of it.
+traits:
+  - Uses exact identifiers and internal shorthand (story keys, repo names)
+  - Wants provenance back to the specific change, commit, or design decision
+  - Has full internal visibility; no access boundary applies

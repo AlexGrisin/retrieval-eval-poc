@@ -157,11 +157,19 @@ supported case field, value, default, and applicability rule.
 | `answer_evaluation.rubrics` | Semantic criteria selected for this case | No; judge routing only |
 | `answer_evaluation.reference_answer` | Optional reviewed comparison answer | No; judge input only |
 | `probe_invalid_request` | Deliberately malformed boundary request | Sent separately, directly to MCP or REST |
+| `persona` | ID of a `personas/<id>.yaml` entry (`id`, `name`, `description`, `traits`) | No; recorded in the run trace and Allure evidence only |
 | Case filename, `title`, `why` | Evaluation identity and purpose | No |
 
-Authenticated caller identity is not yet represented in the case or request. Caller
-identity propagation and server-side authorization cannot be claimed as tested until
-the approved request schema defines that representation.
+Every case declares a `persona` -- who the case represents, resolved against the
+`personas/*.yaml` registry (`harness/definitions/personas.py`, cross-checked the same way
+`answer_evaluation.rubrics` is checked against `rubrics/*.yaml`) -- but that declaration
+is reporting-only: it is not sent as a request argument, and no validator or scoping
+check consumes it yet. A persona's `description`/`traits` exist for future consumers
+(persona-specific phrasing, persona-aware judging) that do not exist yet. Authenticated
+caller identity is not represented in the request itself. Caller identity propagation
+and server-side authorization cannot be claimed as tested until the approved request
+schema defines that representation and the knowledge server implements caller-aware
+scoping; see `docs/ASSUMPTIONS.md`.
 
 ## 2. Request construction and schema enforcement
 
@@ -561,6 +569,7 @@ In that architecture:
 | Case shape, reference labels, answer expectations, and rubric selection | `cases/*.yaml`, `harness/definitions/cases.py` |
 | Synthetic agent-response fixtures | `fixtures/agent_responses/*.yaml`, `harness/definitions/agent_responses.py` |
 | Rubric shape and content | `rubrics/*.yaml`, `harness/definitions/rubrics.py` |
+| Persona shape and content (reporting only; not yet enforced) | `personas/*.yaml`, `harness/definitions/personas.py` |
 | Internal request/response objects | `skill/contracts.py` |
 | Shared MCP and REST wire schemas | `skill/schemas.py` |
 | Request construction and response rendering | `skill/skill.py`, `skill/formatter.py` |

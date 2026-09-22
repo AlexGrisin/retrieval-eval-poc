@@ -21,6 +21,7 @@ why: >-                           # nonblank business reason for keeping this ca
 # Required runtime input
 query: What should the agent retrieve?  # nonblank string
 domain: paastry                         # required nonblank domain string
+persona: platform-engineer              # required; id of a personas/<id>.yaml file, reporting only, see below
 
 # Optional runtime input; default is shown
 limit: 10                        # optional positive integer; default: 10
@@ -89,6 +90,7 @@ describes the business risk that makes the case worth retaining.
 | `why` | Yes | Nonblank string | Business risk or regression the case exists to detect. | No |
 | `query` | Yes | Nonblank string | User question supplied to `kb_search`; later also supplied to the answer judge. | Yes |
 | `domain` | Yes | Nonblank string | The one domain the call is scoped to. | Yes |
+| `persona` | Yes | Nonblank string; must match a `personas/<id>.yaml` file's `id` | ID of the caller this case represents. Recorded in the run trace and Allure evidence; no validator or scoping consumes it yet -- see [ASSUMPTIONS.md](docs/ASSUMPTIONS.md). | No |
 | `limit` | No | Positive integer; default `10` | Maximum number of results requested and cutoff for Recall/NDCG. | Yes |
 | `expect` | No | Mapping; default `{}` | Retrieval invariants and human relevance labels. | No |
 | `expect_tool_call` | No | Exact tool-call mapping | Overrides the automatically derived emitted-call expectation. | No |
@@ -178,3 +180,4 @@ with the final answer and retrieval trace captured from the same agent execution
 | `expect.expected_first_result` | First-result validation |
 | `expect.relevant` | Recall, Precision, MRR, and NDCG calculation |
 | `answer_evaluation` | Deterministic final-answer validation and the selected optional LLM-judge rubrics |
+| `persona` | Reporting only: recorded in the run trace and Allure evidence. Activates no validator. |

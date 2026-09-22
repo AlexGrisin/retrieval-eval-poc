@@ -1,0 +1,13 @@
+# Partner integrator persona -- an external caller, kept for the deferred
+# role-scoped-retrieval slice (see docs/ASSUMPTIONS.md). Not referenced by
+# any committed case yet: no target enforces this boundary today.
+
+id: partner-integrator
+name: "Partner Integrator"
+description: >
+  External integrator building against the public quoting API. Knows the API
+  surface, not the internal delivery history behind it.
+traits:
+  - Knows only public-facing service and API names
+  - Has no access to internal tickets, commits, or design docs
+  - Asks "how do I use this" questions, not "why was this changed"

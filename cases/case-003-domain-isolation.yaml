@@ -6,6 +6,7 @@ why: >-
 
 query: why was tier boundary rounding changed to half-up?
 domain: unrelated-domain
+persona: platform-engineer
 limit: 10
 
 expect:

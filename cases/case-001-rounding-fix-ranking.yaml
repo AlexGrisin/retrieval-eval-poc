@@ -20,6 +20,7 @@ why: >-
 
 query: why was tier boundary rounding changed to half-up?
 domain: paastry
+persona: platform-engineer
 limit: 10
 
 expect:

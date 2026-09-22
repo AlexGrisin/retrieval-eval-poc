@@ -8,6 +8,7 @@ why: >-
 # the server, by probe_invalid_request.
 query: why was the pricing rounding bug fixed?
 domain: paastry
+persona: platform-engineer
 limit: 10
 
 probe_invalid_request:

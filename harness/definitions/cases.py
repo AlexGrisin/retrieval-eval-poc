@@ -16,7 +16,7 @@ from pydantic import ValidationError
 
 from harness.agent.models import AnswerEvaluationSpec
 
-REQUIRED_KEYS = {"title", "why", "query", "domain"}
+REQUIRED_KEYS = {"title", "why", "query", "domain", "persona"}
 ALLOWED_KEYS = REQUIRED_KEYS | {
     "limit",
     "expect",
@@ -79,7 +79,7 @@ def validate_case(
                 f"{source} filename must look like "
                 f"case-001-retries-ranking.yaml; got {case_id!r}"
             )
-    for key in ("title", "why", "query", "domain"):
+    for key in ("title", "why", "query", "domain", "persona"):
         _string(case[key], f"{source}.{key}")
 
     if "limit" in case and (not isinstance(case["limit"], int) or case["limit"] <= 0):

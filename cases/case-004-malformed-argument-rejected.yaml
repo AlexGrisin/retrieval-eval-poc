@@ -10,6 +10,7 @@ why: >-
 # provenance validators still run. The malformed argument is sent separately.
 query: why was the pricing rounding bug fixed?
 domain: paastry
+persona: platform-engineer
 limit: 10
 
 probe_invalid_request:

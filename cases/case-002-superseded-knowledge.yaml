@@ -15,6 +15,7 @@ why: >-
 
 query: what fixed the tiered discount rounding error?
 domain: paastry
+persona: platform-engineer
 limit: 10
 
 expect:

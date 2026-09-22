@@ -13,6 +13,7 @@ from harness.definitions.cases import (
     validate_case,
 )
 from harness.definitions.agent_responses import load_agent_responses
+from harness.definitions.personas import load_personas
 from harness.definitions.rubrics import RubricSpecError, validate_rubric_spec
 from harness.execution import CaseExecutions
 from harness.judges.loader import load_rubrics
@@ -67,6 +68,7 @@ def test_filename_derived_metadata_is_not_authored():
         "why": "The filename and declared expectations already provide it.",
         "query": "question",
         "domain": "paastry",
+        "persona": "platform engineer",
     }
 
     with pytest.raises(CaseSpecError, match="unknown key.*id.*kind"):
@@ -80,6 +82,7 @@ def test_incomplete_relevance_label_is_rejected():
         "why": "A grade-less relevance label must not silently count as ungraded.",
         "query": "question",
         "domain": "paastry",
+        "persona": "platform engineer",
         "expect": {"relevant": [{"entity": "Story/PAAS-201"}]},
     }
 
@@ -94,10 +97,24 @@ def test_malformed_entity_identity_is_rejected():
         "why": "An identity without Label/key shape must fail before execution.",
         "query": "question",
         "domain": "paastry",
+        "persona": "platform engineer",
         "expect": {"relevant": [{"entity": "PAAS-201", "grade": 2}]},
     }
 
     with pytest.raises(CaseSpecError, match="must look like Label/key"):
+        validate_case(case)
+
+
+@framework_id("synthetic:definition:missing_persona_rejected")
+def test_missing_persona_is_rejected():
+    case = {
+        "title": "Missing persona",
+        "why": "An unspecified caller must not be silently evaluated.",
+        "query": "question",
+        "domain": "paastry",
+    }
+
+    with pytest.raises(CaseSpecError, match="missing required key.*persona"):
         validate_case(case)
 
 
@@ -108,6 +125,7 @@ def test_unknown_expectation_is_rejected():
         "why": "A typo must not silently reduce coverage.",
         "query": "question",
         "domain": "paastry",
+        "persona": "platform engineer",
         "expect": {"every_result_has_note_reference": True},
     }
 
@@ -118,6 +136,18 @@ def test_unknown_expectation_is_rejected():
 @framework_id("suite:definition:committed_rubrics_valid")
 def test_committed_rubrics_are_valid():
     assert set(load_rubrics()) == {"answer_correctness", "faithfulness", "relevancy"}
+
+
+@framework_id("suite:definition:committed_personas_valid")
+def test_committed_personas_are_valid():
+    assert set(load_personas()) == {"platform-engineer", "partner-integrator"}
+
+
+@framework_id("suite:definition:case_personas_known")
+def test_case_personas_are_known():
+    persona_ids = set(load_personas())
+    unknown = {case["id"]: case["persona"] for case in CASES if case["persona"] not in persona_ids}
+    assert not unknown, f"case(s) reference undefined persona(s): {unknown}"
 
 
 @framework_id("suite:definition:selected_rubrics_known")
@@ -151,6 +181,7 @@ def test_answer_correctness_requires_a_reference_answer():
         "why": "Answer correctness needs an explicit comparison target.",
         "query": "question",
         "domain": "paastry",
+        "persona": "platform engineer",
         "answer_evaluation": {"rubrics": ["answer_correctness"]},
     }
 

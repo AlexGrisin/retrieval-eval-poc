@@ -198,6 +198,7 @@ def run_case(case: dict, corpus: Path, transport: str = "inprocess") -> dict:
         "trace": {
             "query": case["query"],
             "domain": domain,
+            "persona": case["persona"],
             "tool_call": spy.last_call,
             "calls": len(spy.calls),
             "results": (
@@ -371,6 +372,7 @@ def main() -> int:
             print("=" * 78)
             print(f"query   : {tr['query']}")
             print(f"domain  : {tr['domain']}")
+            print(f"persona : {tr['persona']}")
             print(f"\nemitted tool call ({tr['calls']} call(s) total):")
             print(json.dumps(tr["tool_call"], indent=2))
             print("\nbackend returned:")

@@ -36,6 +36,27 @@ Confidence scale: **high** = observed directly in the repo, only the intent is o
   approved release policy or a reference set.
 - Confidence: high. Resolve in: [ARCHITECTURE.md](./ARCHITECTURE.md) + `../TASKS.md`.
 
+### Persona is declared and reported, not enforced
+
+- Every case declares a required `persona` field, an ID resolved against
+  `personas/*.yaml` (`id`, `name`, `description`, `traits`; validated and cross-checked
+  in `harness/definitions/personas.py` and `tests/test_01_definitions.py`, same pattern
+  as the rubric registry). It is recorded in the run trace and Allure evidence. No
+  target — neither the real knowledge server nor this repo's fixture-backed stand-in
+  (`skill/fake_server.py`) — scopes results by caller, so this cannot detect a
+  permission leak, and the harness must never post-filter results by persona and assert
+  on its own filter. Role-scoped retrieval stays unmeasurable until the knowledge server
+  defines and implements caller identity.
+- Nothing consumes a persona's `description`/`traits` yet. They exist for the deferred
+  slices that would (persona-specific query phrasing, persona-aware answer judging) —
+  see `personas/partner-integrator.yaml`, committed but not referenced by any case.
+- Persona-file content is not yet part of the run manifest's compatibility hash (unlike
+  `case_set_hash`), so editing a persona's description/traits without touching a case
+  file would not invalidate a baseline. Low impact today since nothing reads those
+  fields; becomes load-bearing once a judge or generator does.
+- Confidence: high. Resolve in: [ARCHITECTURE.md](./ARCHITECTURE.md) once a
+  caller-identity contract is ratified for `kb_search`.
+
 ### Rubric traceability status is inconsistent by design, not by defect
 
 - `rubrics/faithfulness.yaml` is `unratified` (source is a task doc; "no Component
