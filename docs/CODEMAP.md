@@ -68,12 +68,11 @@ Frozen test data: corpus, agent responses, synthetic data
 - corpus.yaml
 - agent_responses/
 
-### fixtures/agent_responses/ (2 files)
+### fixtures/agent_responses/ (1 file)
 
 Synthetic agent response fixtures for test cases
 
-- case-001-retries-ranking.yaml
-- insufficient-context.yaml
+- case-001-rounding-fix-ranking.yaml
 
 ## harness/ (25 files)
 
