@@ -19,7 +19,7 @@ CHECKS: dict[str, dict[str, str]] = {
         ),
     },
     "contract:server_rejects_invalid_request": {
-        "declared_by": "probe_invalid_request + --transport mcp|rest",
+        "declared_by": "probe_invalid_request",
         "status": "traced",
         "source": "mcp-tool-contracts-reference.md, extra=forbid enforcement is "
                   "server side, clients are never trusted",

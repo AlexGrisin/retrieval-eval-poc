@@ -25,7 +25,7 @@ runs a real answer-generating agent.
 ```mermaid
 flowchart LR
     Case["test case<br/>question + scope + expectations"]
-    Retrieval["run retrieval<br/>in-process, MCP, or REST"]
+    Retrieval["run retrieval<br/>real knowledge server over MCP"]
     Output["capture retrieval output<br/>request + ranked notes + context"]
     Validators["validators<br/>exact pass/fail rules"]
     Metrics["ranking metrics<br/>retrieval-quality scores"]
@@ -49,8 +49,8 @@ In plain language:
 
 1. Load a well-formed test case containing the question, retrieval scope, and expected
    behaviour.
-2. Run retrieval through the selected transport and capture what was requested and
-   what came back.
+2. Run retrieval against the real knowledge server over MCP and capture what was
+   requested and what came back.
 3. Use deterministic validators for exact rules and ranking metrics for retrieval
    quality.
 4. Optionally combine the retrieved context with a generated answer and ask an LLM
@@ -70,16 +70,10 @@ flowchart TD
     Runner["shared execution<br/>harness/runner.py"]
     Skill["RetrievalSkill<br/>build request"]
     Spy["recording client<br/>capture emitted call"]
+    MCP["MCPKnowledgeClient<br/>real MCP boundary"]
 
-    subgraph Seam["selected execution seam"]
-        Direct["in-process"]
-        MCP["MCP"]
-        REST["REST"]
-    end
-
-    RequestSchema["shared request schema<br/>skill/schemas.py"]
-    Server["knowledge server<br/>fixture-backed in the POC"]
-    ResponseSchema["shared response schema<br/>skill/schemas.py"]
+    ResponseSchema["published response schema<br/>skill/schemas.py"]
+    Server["real knowledge server<br/>MCP streamable HTTP"]
     Decode["decode + render<br/>skill/"]
     Captured["captured retrieval result<br/>ranked notes + facets + rendered context"]
 
@@ -98,15 +92,8 @@ flowchart TD
     JudgeReport["judge score + explanation<br/>reporting-only"]
 
     Case --> Definition --> Runner --> Skill --> Spy
-    Spy --> Direct
-    Spy --> MCP
-    Spy --> REST
-    MCP --> RequestSchema
-    REST --> RequestSchema
-    Direct --> Server
-    RequestSchema --> Server
-    Server -->|MCP/REST response| ResponseSchema --> Decode
-    Server -->|in-process response| Decode
+    Spy --> MCP --> Server
+    Server -->|kb_search response| ResponseSchema --> Decode
     Decode --> Captured
 
     Case -.-> Expectations
@@ -156,7 +143,7 @@ supported case field, value, default, and applicability rule.
 | `answer_evaluation.expect` | Exact status and citation expectations for the final answer | No; answer-validator input only |
 | `answer_evaluation.rubrics` | Semantic criteria selected for this case | No; judge routing only |
 | `answer_evaluation.reference_answer` | Optional reviewed comparison answer | No; judge input only |
-| `probe_invalid_request` | Deliberately malformed boundary request | Sent separately, directly to MCP or REST |
+| `probe_invalid_request` | Deliberately malformed boundary request | Sent separately, directly to the MCP boundary |
 | `persona` | ID of a `personas/<id>.yaml` entry (`id`, `name`, `description`, `traits`) | No; recorded in the run trace and Allure evidence only |
 | Case filename, `title`, `why` | Evaluation identity and purpose | No |
 
@@ -173,7 +160,7 @@ scoping; see `docs/ASSUMPTIONS.md`.
 
 ## 2. Request construction and schema enforcement
 
-`SearchSkill` turns case input into this transport-neutral request:
+`SearchSkill` turns case input into this MCP tool call:
 
 ```json
 {
@@ -186,54 +173,52 @@ scoping; see `docs/ASSUMPTIONS.md`.
 }
 ```
 
-The recording client captures this call before forwarding it. That captured call is
-what `contract:emitted_tool_call` validates; the harness does not infer what was sent
-from the response.
+The recording client (`SpyClient`) captures this call before forwarding it over MCP.
+That captured call is what `contract:emitted_tool_call` validates; the harness does not
+infer what was sent from the response.
 
-There are two representations of the retrieval contract:
+Two representations of the retrieval contract, deliberately kept independent:
 
-| Boundary | Contract | Responsibility |
+| Layer | Contract | Responsibility |
 | --- | --- | --- |
 | Skill internals | Dataclasses in `skill/contracts.py` | Validate nonblank domain/query, positive `limit`; build the exact tool call |
-| MCP and REST wire | Pydantic models in `skill/schemas.py` | Publish one shared request/response shape, reject extra fields, and enforce wire field types |
+| Published response | Pydantic models in `skill/schemas.py` | Reject a renamed, missing, or wrongly typed output field once the response has been decoded |
 
-Execution mode determines where the request crosses a schema boundary:
-
-1. `inprocess` calls the fixture-backed server through Python objects. It exercises
-   skill request construction but not a protocol boundary.
-2. `mcp` sends the arguments through the MCP tool schema.
-3. `rest` sends the same shape as a REST JSON body.
-
-MCP and REST both import `skill/schemas.py`; they do not maintain independent copies
-of the contract. A case with `probe_invalid_request` bypasses the skill and sends its
-malformed request directly to one of these protocol boundaries. This proves rejection
-by the server-facing contract rather than only by trusted client code. `kb_search` has
-no nested request object (unlike the retired `filters`), so the enforceable probe
-surface is per-argument type checking, not unknown-key rejection -- see
-`harness/validators/contract.py::check_server_rejects_invalid_request`.
+`MCPKnowledgeClient` is the only `KnowledgeClient` implementation; there is no
+in-process or REST seam. A case with `probe_invalid_request` bypasses the skill and
+sends its malformed request directly to the real server's MCP endpoint. This proves
+rejection by the server-facing contract rather than only by trusted client code.
+`kb_search` has no nested request object (unlike the retired `filters`), so the
+enforceable probe surface is per-argument type checking, not unknown-key rejection --
+see `harness/validators/contract.py::check_server_rejects_invalid_request`.
 
 ## 3. Retrieval output and captured execution record
 
-The server response has this wire shape:
+The knowledge server's `kb_search` response wraps its hits under `result` (singular) --
+confirmed against a live call, not merely documented:
 
 ```json
 {
-  "results": [
+  "result": [
     {
       "entity": {"label": "Story", "key": "PAAS-201"},
       "title": "Fix pricing rounding error for tiered discounts",
       "snippet": "Customers on tiered discount plans were undercharged...",
       "score": 0.24,
-      "matched_by": "fulltext",
+      "matched_by": "vector",
       "citations": [{"source_system": "jira", "reference": "PAAS-201"}]
     }
   ]
 }
 ```
 
-`SearchResponseOut` requires `results`. Every result must contain the entity identity
-(`label` + `key`), title, snippet, score, `matched_by`, and its citations. Extra output
-fields are rejected at MCP and REST boundaries.
+`skill/client.py::_response_from_payload` is the one place this wire dict becomes a
+`SearchResponse`, keyed strictly on `result` -- accepting an alternate spelling would
+let the server rename the envelope without any test noticing. `SearchResponseOut`
+(`skill/schemas.py`) then validates the *decoded* shape (`response.as_dict()`, which is
+always `results`, plural -- the skill's own internal contract, not the wire spelling):
+entity identity (`label` + `key`), title, snippet, score, `matched_by`, and citations,
+with `extra="forbid"` rejecting anything else.
 
 The skill decodes the response into the transport-independent objects in
 `skill/contracts.py`, then `skill/formatter.py` derives human-readable `rendered`
@@ -268,7 +253,7 @@ source and records `ok`, `fail`, or `skip`.
 | Validator | Input inspected | Applicability | What failure means |
 | --- | --- | --- | --- |
 | `contract:emitted_tool_call` | Captured request and case input | Every case | Query, scope, filters, limit, format, or tool name changed or was dropped |
-| `contract:server_rejects_invalid_request` | Direct malformed probe and server response | Cases with `probe_invalid_request`; MCP/REST only | The server trust boundary accepted invalid input or rejected it for the wrong reason |
+| `contract:server_rejects_invalid_request` | Direct malformed probe and server response | Cases with `probe_invalid_request` | The server trust boundary accepted invalid input or rejected it for the wrong reason |
 | `contract:response_contract_valid` | Decoded response or retrieval error | Every case | No valid response was decoded, or required output is missing, renamed, extra, or wrongly typed |
 | `retrieval:must_not_return` | Ranked note IDs and `expect.must_not_return` | When declared | Forbidden, superseded, unverified, or out-of-scope knowledge leaked |
 | `retrieval:expected_first_result` | First ranked note and the declared expectation | When declared | The explicitly authoritative result did not rank first |
@@ -276,9 +261,7 @@ source and records `ok`, `fail`, or `skip`.
 
 Any failed validator adds an invariant failure and makes the case fail. When the CLI
 repeats a case, all passes produce `PASS`, all failures produce `FAIL`, and mixed
-results produce `FLAKY`. A skipped check is visible but is not treated as a pass;
-for example, invalid-request rejection is skipped in `inprocess` mode because no
-protocol trust boundary exists there.
+results produce `FLAKY`. A skipped check is visible but is not treated as a pass.
 
 ## 5. Ranking metrics
 
@@ -328,14 +311,16 @@ must match               may differ when declared      traceability only
          +---------------- baseline comparison --------+
 ```
 
-The compatibility section records the evaluation profile and level, corpus content,
-case and relevance-label content, request/response contracts, orchestration code,
-dependency lock, transport, execution count, environment class, index and embedding
-configuration, vocabulary, ontology, permission policy, and the result-family
-measurement definition. The target section records the Knowledge Server, Retrieval
-Skill, graph/vector store, index build, and retrieval configuration versions. The run
-section records values such as execution time that support attribution but do not
-invalidate a functional comparison.
+The compatibility section records the evaluation profile and level, case and
+relevance-label content, request/response contracts, orchestration code, dependency
+lock, transport, and execution count as instrument-computed facts; corpus snapshot,
+environment class, index and embedding configuration, vocabulary, ontology, and
+permission policy are operator-supplied, since the live server reports none of them
+itself (confirmed: `/healthz` returns only `{"status": "ok"}`, `/version` 404s). The
+target section records the Retrieval Skill version (hashed, ours) plus the Knowledge
+Server, graph/vector store, index build, and retrieval configuration versions
+(operator-supplied). The run section records values such as execution time that
+support attribution but do not invalidate a functional comparison.
 
 Target differences are rejected unless the current run declares the exact
 `target.<field>` as its `change_under_test`. Controlled inputs cannot be waived this
@@ -350,13 +335,13 @@ baseline; the runner never compares only their intersection. Unknown manifest
 versions, missing required fields, undeclared target changes, and malformed baseline
 files are rejected before metric deltas are calculated.
 
-The current synthetic target supplies explicit fixture values. A real Knowledge
-Server integration supplies the same manifest fields through system metadata,
-including its build, corpus/index snapshot, store, embedding, schema, semantic-asset,
-retrieval-configuration, and permission-policy versions. Recording the first approved
-real baseline is separate from this comparison mechanism.
+`--write-baseline`/`--baseline` refuse to run without this metadata --
+`harness/baselines.py::missing_required_system_metadata` names every missing dotted
+path -- since the harness has no way to verify what the operator states. A plain
+evaluation run (no baseline flags) needs none of this. Recording the first approved
+real baseline is a reviewed decision separate from this mechanism enforcing it.
 
-The integration metadata has this shape:
+The required `--system-metadata` shape:
 
 ```json
 {
@@ -473,56 +458,44 @@ execution passed.
 Identical inputs and versions reuse the content-addressed cache.
 
 Rubric thresholds are present in rubric definitions but do not currently gate pytest,
-the retrieval verdict, metrics, baseline comparison, or process exit status. Normal
-pytest uses a fake Gateway; `pytest --judge` explicitly enables the live call.
+the retrieval verdict, metrics, baseline comparison, or process exit status. A normal
+pytest run exercises none of the judge machinery at all -- `judge`-marked tests are
+deselected unless `--judge` explicitly enables the live call.
 
 ## 7. How pytest executes the architecture
 
-Pytest is an orchestration and reporting layer over the same `run_case()` function
-used by the harness runner:
+Every test in `tests/` is `evaluation`-marked and runs against the real knowledge
+server (and, for judge tests, the real LLM Gateway). There is no offline harness
+self-test layer: pytest here is an orchestration and reporting layer over the same
+`run_case()` function used by the harness runner, always against a live target.
 
-1. `test_01_definitions.py` loads cases, their optional answer-evaluation sections,
-   response fixtures, and rubrics and rejects invalid test data.
+1. `test_01_definitions.py::test_committed_case_is_valid` validates every committed
+   case's shape before anything runs.
 2. The session-scoped `case_executions` store in `harness/execution.py` executes
-   lazily by case and caches each capture. Its POC provider runs fixture-backed
-   retrieval and loads a saved answer when needed; a real provider will invoke the
-   agent and capture both outputs.
+   lazily by case and caches each capture, running retrieval against the real
+   knowledge server and loading a saved answer fixture when needed; a real agent
+   provider will invoke the agent and capture both outputs instead.
    `test_02_retrieval.py` reports retrieval validators over the captured result.
 3. `captured_runs` converts each answer-enabled execution into the shared input for
    `test_03_answer.py`, which applies exact answer validators and judge prerequisites.
 4. `test_04_ranking.py` reports each metric calculated for a case with relevance
-   labels and checks the metric adapter against explicit known rankings, including
-   empty retrieval.
-   Metrics have no per-case pytest quality threshold yet.
-5. `test_05_judges.py` consumes the same captured runs and exercises prompt
-   construction, strict output parsing, caching, and reporting. Tests marked `judge`
-   are deselected unless `--judge` is supplied; only those opt-in tests may call the
-   configured live model.
+   labels. Metrics have no per-case pytest quality threshold yet.
+5. `test_05_judges.py` consumes the same captured runs to call the live LLM Gateway.
+   Its one test is `judge`-marked and deselected unless `--judge` is supplied.
 
 Evaluation items are collected case-first. Within each case, verbose pytest output
 follows definition, request, response, expectation, answer, ranking, and judge order.
 Case-driven parameter IDs use `case:level:check`; `suite` identifies repository-wide
-checks, while `synthetic` identifies tests of the harness rather than a retrieval
-scenario. Selecting one case with `-k` does not execute the others.
+checks. Selecting one case with `-k` does not execute the others.
 
-Pytest markers separate the two meanings of success:
+`--server-url` (default `http://127.0.0.1:8000/mcp`, overridable via `KS_SERVER_URL`
+in `.env` or the environment) and `--judge` can be combined without changing case
+definitions.
 
-- `pytest -m framework` verifies loaders, validators, metric calculations, judge
-  plumbing, and committed evaluation assets.
-- `pytest -m evaluation` reports only declared case outcomes for the selected target.
-
-The unfiltered `pytest` command runs both categories. `--transport` and `--judge` can
-be combined with `-m evaluation` without changing case definitions.
-
-Framework tests use fixed local synthetic inputs rather than `case_executions`, so
-they cannot accidentally invoke a real target and may use pytest-xdist. Case-driven
-evaluation and live-judge runs must remain single-process: xdist would give each
-worker its own session cache and could execute the same real case more than once.
-Pytest therefore accepts `-n` only with the exact `-m framework` selection.
-
-The default transport is `inprocess`. Selecting `--transport mcp` or
-`--transport rest` runs the same case definitions across a protocol boundary and
-makes the invalid-request validators applicable.
+Every run is single-process: pytest-xdist is not a dependency, and
+`tests/conftest.py::pytest_sessionstart` refuses `-n` unconditionally. Parallel
+workers would give each worker its own session cache and could execute the same real
+case against the real server more than once.
 
 ## 8. Target end-to-end flow with the real agent
 
@@ -571,10 +544,9 @@ In that architecture:
 | Rubric shape and content | `rubrics/*.yaml`, `harness/definitions/rubrics.py` |
 | Persona shape and content (reporting only; not yet enforced) | `personas/*.yaml`, `harness/definitions/personas.py` |
 | Internal request/response objects | `skill/contracts.py` |
-| Shared MCP and REST wire schemas | `skill/schemas.py` |
+| Published response wire schema | `skill/schemas.py` |
 | Request construction and response rendering | `skill/skill.py`, `skill/formatter.py` |
-| MCP and REST server boundaries | `server_mcp.py`, `server_rest.py` |
-| Transport clients and emitted-call capture | `skill/client.py` |
+| MCP client and emitted-call capture | `skill/client.py` |
 | Shared execution and retrieval record | `harness/runner.py` |
 | Lazy one-execution-per-case storage and captured views | `harness/execution.py` |
 | Provisional agent response and captured-run evaluation | `harness/agent/*.py` |

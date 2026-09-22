@@ -1,5 +1,10 @@
 # Pytest Case-Check Marker & Traceability-Driven Test Generation
 
+> 2026-09-22: the `framework_id()` / `-m framework` half of this pattern was removed
+> along with the entire framework-marked test layer -- every test now runs against the
+> live knowledge server. The `case_check` marker and traceability-marker mechanism
+> below is unaffected and still current.
+
 ## Description
 
 `tests/test_02_retrieval.py`'s `_params()` generates one parametrized
@@ -21,16 +26,11 @@ Every generated test carries:
   to only requirements with a ratified source, with zero duplicated
   bookkeeping between the CLI runner and the test suite.
 
-`tests/support.py::framework_id()` gives a non-case, non-parametrized
-"framework" test (a sanity check on a validator itself, not on a case) a
-readable, stable pytest ID via the same indirect-parametrize trick pytest
-normally reserves for real parametrization — see
-`test_response_contract_reports_wrong_field_type` for an example
-consumer. `tests/conftest.py::pytest_sessionstart` refuses `-n auto`
-(xdist parallel workers) unless exactly `-m framework` is selected,
-because letting evaluation cases run across workers would let one logical
-case execute more than once — which the harness treats as a defect
-(`FLAKY`), not as speedup.
+`tests/conftest.py::pytest_sessionstart` refuses `-n auto` (xdist parallel workers)
+unconditionally -- every test now hits the live knowledge server, and letting cases
+run across workers would let one logical case execute more than once, which the
+harness treats as a defect (`FLAKY`), not as speedup. pytest-xdist is not a project
+dependency.
 
 ## Template / Example
 
@@ -50,14 +50,4 @@ def _params():
 @pytest.mark.evaluation
 def test_check(case_results, case_id, check_name):
     ...
-```
-
-```python
-# Giving a non-case "framework" test a readable, stable ID:
-from tests.support import framework_id
-
-@framework_id("synthetic:response:wrong_field_type_rejected")
-def test_my_framework_sanity_check():
-    ...  # EXTENSION POINT: use this for any test that checks the
-         # harness/validators themselves, not a specific evaluation case
 ```

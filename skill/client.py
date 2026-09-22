@@ -1,15 +1,9 @@
-"""The seam that makes the mock disposable.
+"""The client that talks to the real knowledge server over MCP.
 
-The skill talks to a KnowledgeClient. Three implementations exist today:
-FakeKnowledgeGraph (in process), MCPKnowledgeClient, RESTKnowledgeClient. When
-the real server exists, whichever of the latter two matches its actual
-transport is what changes -- the skill, the cases, and the harness do not.
-
-Both network clients funnel through _response_from_payload(): the only thing
-that differs between transports is HOW a dict is obtained from the wire (an
-MCP CallToolResult vs an httpx Response), never how that dict becomes a
-SearchResponse. One parsing path, so the two transports cannot silently
-diverge on it.
+The skill talks to a KnowledgeClient; MCPKnowledgeClient is the one
+implementation, and it is a thin wire adapter -- the skill, the cases, and the
+harness build and consume transport-neutral contracts (skill/contracts.py)
+regardless of what sits on the other end of `target`.
 """
 
 from __future__ import annotations
@@ -20,6 +14,10 @@ import time
 from typing import Any, Protocol
 
 from .contracts import Citation, Entity, SearchHit, SearchRequest, SearchResponse
+
+# The knowledge server's kb_search envelope key, confirmed against a live call --
+# see skill/client.py's _response_from_payload docstring.
+WIRE_RESULTS_KEY = "result"
 
 
 class KnowledgeClient(Protocol):
@@ -32,10 +30,9 @@ class SpyClient:
     This is what makes L1 assertions real rather than circular: we check what
     the skill *sent*, not just what the backend chose to return.
 
-    Also times each call. Transport-agnostic on purpose: wrapping here (not in
-    the runner) captures MCP/REST round-trip and serialization overhead too,
-    not just the fake backend's own compute time -- real signal even before a
-    real server exists, per LATENCY-MEASUREMENT-PLAN.md.
+    Also times each call. Wrapping here (not in the runner) captures the real
+    MCP round-trip and serialization overhead, not just skill-side compute time,
+    per LATENCY-MEASUREMENT-PLAN.md.
     """
 
     def __init__(self, inner: KnowledgeClient) -> None:
@@ -61,13 +58,12 @@ class SpyClient:
 
 
 class MCPKnowledgeClient:
-    """Talks to a knowledge server over MCP instead of in process.
+    """Talks to the real knowledge server over MCP.
 
-    `target` is anything the SDK's Client accepts: an MCPServer instance
-    (in-memory transport, used by the suite), or a URL string for a running
-    server.
+    `target` is anything the SDK's Client accepts -- in practice a streamable-HTTP
+    URL such as http://127.0.0.1:8000/mcp.
 
-    Imports the SDK lazily so in-process ranking runs do not load MCP.
+    Imports the SDK lazily so importing this module never requires it.
     """
 
     def __init__(self, target: Any) -> None:
@@ -88,49 +84,11 @@ class MCPKnowledgeClient:
         return f"MCPKnowledgeClient({self._target!r})"
 
 
-class RESTKnowledgeClient:
-    """Talks to a knowledge server over REST instead of in process.
-
-    `target` is either a running server's base URL (e.g.
-    "http://localhost:8001"), or a FastAPI app instance -- in the latter case
-    httpx's ASGITransport talks to it in-process, the REST equivalent of
-    MCPKnowledgeClient's in-memory transport, so the suite never binds a real
-    port.
-    """
-
-    def __init__(self, target: Any) -> None:
-        self._target = target
-
-    def search(self, request: SearchRequest) -> SearchResponse:
-        return asyncio.run(self._call(request))
-
-    async def _call(self, request: SearchRequest) -> SearchResponse:
-        import httpx
-
-        body = request.as_tool_call()["args"]
-        if isinstance(self._target, str):
-            client_kwargs: dict[str, Any] = {"base_url": self._target}
-        else:
-            client_kwargs = {
-                "transport": httpx.ASGITransport(app=self._target),
-                "base_url": "http://test",
-            }
-        async with httpx.AsyncClient(**client_kwargs) as client:
-            resp = await client.post("/kb/search", json=body)
-        if resp.status_code != 200:
-            raise ValueError(f"REST call failed [{resp.status_code}]: {resp.text}")
-        return _response_from_payload(resp.json())
-
-    def __repr__(self) -> str:  # shows up in run records
-        return f"RESTKnowledgeClient({self._target!r})"
-
-
 def _payload_from_mcp_result(result: Any) -> dict[str, Any]:
     """Extract the response dict from an MCP CallToolResult.
 
     Structured output may or may not be present; the text fallback is a JSON
-    blob that has to be sniffed. This is the part that does not exist in an
-    in-process call, and it is where real integrations break.
+    blob that has to be sniffed.
     """
     payload: dict[str, Any] | None = getattr(result, "structuredContent", None) or getattr(
         result, "structured_content", None
@@ -147,8 +105,14 @@ def _payload_from_mcp_result(result: Any) -> dict[str, Any]:
 
 
 def _response_from_payload(payload: dict[str, Any]) -> SearchResponse:
-    """The one place a wire dict becomes a SearchResponse, for every transport."""
-    if not isinstance(payload, dict) or "results" not in payload:
+    """The one place a wire dict becomes a SearchResponse.
+
+    The knowledge server returns its hits under `result`, not `results` -- verified
+    against tools/list and a live kb_search call. Parsed strictly: accepting both
+    spellings would let the server rename the envelope without any test noticing,
+    which is the drift this layer exists to catch.
+    """
+    if not isinstance(payload, dict) or WIRE_RESULTS_KEY not in payload:
         raise ValueError(f"response does not match the response contract: {payload!r}")
 
     return SearchResponse(
@@ -161,6 +125,6 @@ def _response_from_payload(payload: dict[str, Any]) -> SearchResponse:
                 matched_by=row["matched_by"],
                 citations=[Citation(**c) for c in row.get("citations", [])],
             )
-            for row in payload["results"]
+            for row in payload[WIRE_RESULTS_KEY]
         ],
     )

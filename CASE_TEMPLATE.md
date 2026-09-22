@@ -34,7 +34,7 @@ expect:
   must_not_return: [Commit/github.com/paastry/svc-pricing-api@f00dfed]  # entity identities that must be absent at every rank
   expected_first_result: Story/PAAS-201  # exact entity identity required at rank 1
 
-# Optional deliberately malformed server probe; runs only over MCP or REST
+# Optional deliberately malformed server probe
 probe_invalid_request:
   limit: not-a-number
 
@@ -94,7 +94,7 @@ describes the business risk that makes the case worth retaining.
 | `limit` | No | Positive integer; default `10` | Maximum number of results requested and cutoff for Recall/NDCG. | Yes |
 | `expect` | No | Mapping; default `{}` | Retrieval invariants and human relevance labels. | No |
 | `expect_tool_call` | No | Exact tool-call mapping | Overrides the automatically derived emitted-call expectation. | No |
-| `probe_invalid_request` | No | Deliberately malformed request fields | Bypasses the skill and checks that the MCP/REST server rejects invalid input. | Sent only as the separate probe |
+| `probe_invalid_request` | No | Deliberately malformed request fields | Bypasses the skill and checks that the server rejects invalid input over MCP. | Sent only as the separate probe |
 | `answer_evaluation` | No | Mapping described below | Exact answer expectations, selected judge rubrics, and optional reference answer. | No; its selected inputs are used by validators/judges |
 
 ## Entity identity
@@ -145,9 +145,8 @@ expect_tool_call:
 `probe_invalid_request` intentionally has no closed value set: its purpose is to
 contain a malformed field or value such as a blank `query` or a wrong-typed
 `limit`. The harness combines it with the case's otherwise
-valid request and sends it directly to the server, bypassing the skill. The rejection
-validator runs only with `--transport mcp` or `--transport rest`; it is not applicable
-to `inprocess` execution.
+valid request and sends it directly to the real knowledge server over MCP, bypassing
+the skill.
 
 ## Generated-answer evaluation
 
@@ -175,7 +174,7 @@ with the final answer and retrieval trace captured from the same agent execution
 | Declaration | Evaluation activated |
 | --- | --- |
 | Every valid case | Definition validation, emitted-call validation, response-contract validation, and result-provenance validation |
-| `probe_invalid_request` | Server-rejection validation over MCP/REST |
+| `probe_invalid_request` | Server-rejection validation over MCP |
 | `expect.must_not_return` | Forbidden-result validation |
 | `expect.expected_first_result` | First-result validation |
 | `expect.relevant` | Recall, Precision, MRR, and NDCG calculation |

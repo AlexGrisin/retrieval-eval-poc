@@ -8,9 +8,6 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 
-# Scratch corpora from sabotage drills. Keep these out of the repo: a mutated
-# corpus that looks like a fixture is worse than no fixture.
-*poisoned*.yaml
 scratch/
 
 # Per-run output, once the runner writes it. NOT baselines/ -- see below.
@@ -21,7 +18,10 @@ allure-report/
 # Committed on purpose, listed here so nobody "tidies" them away:
 #   baselines/        the reference scoreboard; the regression gate compares to it
 #   cases/            the answer key, reviewed like knowledge
-#   fixtures/         the frozen corpus and its version
+#   personas/         the persona registry cases reference by id
+#   fixtures/         agent-response fixtures and the frozen retrieval capture used
+#                     by framework tests (fixtures/captured_retrieval/); no corpus
+#                     lives here -- the harness evaluates the real knowledge server
 
 # Rosetta
 agents/TEMP/

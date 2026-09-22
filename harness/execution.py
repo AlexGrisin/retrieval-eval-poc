@@ -13,42 +13,45 @@ from harness.runner import run_case
 
 
 class CaseExecutions:
-    """Execute each requested case once and cache its complete captured inputs."""
+    """Execute each requested case's retrieval once and cache it.
+
+    Deliberately does NOT also load the case's answer fixture here. That used to
+    happen in the same step, uncached on failure: a missing or malformed
+    fixtures/agent_responses/<case_id>.yaml raised before the already-successful
+    retrieval was cached, so every consumer -- including CaseResults, which never
+    needs the fixture at all -- re-ran the live retrieval call and failed again.
+    Retrieval and the answer fixture are independent failure domains; only
+    CapturedRuns needs the latter, so it loads it itself, lazily, via
+    load_response().
+    """
 
     def __init__(
         self,
         cases: list[dict],
-        corpus: Path,
-        transport: str,
+        server_url: str,
         response_dir: Path,
         *,
-        case_runner: Callable[[dict, Path, str], dict] = run_case,
+        case_runner: Callable[[dict, str], dict] = run_case,
         response_loader: Callable[[Path], Any] = load_agent_response,
     ) -> None:
         self._cases = {case["id"]: case for case in cases}
-        self._corpus = corpus
-        self._transport = transport
+        self._server_url = server_url
         self._response_dir = response_dir
         self._case_runner = case_runner
         self._response_loader = response_loader
         self._cache: dict[str, dict] = {}
 
     def __getitem__(self, case_id: str) -> dict:
-        if case_id in self._cache:
-            return self._cache[case_id]
+        if case_id not in self._cache:
+            case = self._cases[case_id]
+            retrieval_result = self._case_runner(case, self._server_url)
+            self._cache[case_id] = {"case": case, "retrieval_result": retrieval_result}
+        return self._cache[case_id]
 
-        case = self._cases[case_id]
-        retrieval_result = self._case_runner(case, self._corpus, self._transport)
-        response = None
-        if get_answer_evaluation(case) is not None:
-            response = self._response_loader(self._response_dir / f"{case_id}.yaml")
-        execution = {
-            "case": case,
-            "retrieval_result": retrieval_result,
-            "response": response,
-        }
-        self._cache[case_id] = execution
-        return execution
+    def load_response(self, case_id: str) -> Any:
+        """Load the case's declared answer fixture. Not cached here -- CapturedRuns
+        caches the evaluated run, which is the only thing that needs this value."""
+        return self._response_loader(self._response_dir / f"{case_id}.yaml")
 
     @property
     def executed_ids(self) -> tuple[str, ...]:
@@ -76,9 +79,9 @@ class CapturedRuns:
         if case_id in self._cache:
             return self._cache[case_id]
         execution = self._executions[case_id]
-        response = execution["response"]
-        if response is None:
+        if get_answer_evaluation(execution["case"]) is None:
             raise KeyError(f"{case_id} does not declare answer_evaluation")
+        response = self._executions.load_response(case_id)
         run = evaluate_agent_response(
             case=execution["case"],
             retrieval_result=execution["retrieval_result"],

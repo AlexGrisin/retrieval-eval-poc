@@ -4,8 +4,8 @@ Recurring structural conventions extracted from the codebase (Rosetta Phase 5,
 install mode — no prior docs/PATTERNS existed). Each pattern below was verified
 by reading the actual code in 2+ places before being included; see each
 pattern file for exact file/function evidence. Scope: harness/, skill/,
-server_mcp.py, server_rest.py, cases/, rubrics/, fixtures/, tests/. Excluded as
-Rosetta-managed / not a pattern source: docs/.
+cases/, personas/, rubrics/, fixtures/, tests/. Excluded as Rosetta-managed /
+not a pattern source: docs/.
 
 ## Strict Boundary Contract (Pydantic v2) - every cross-boundary payload is a single shared `extra="forbid", strict=True` pydantic model with non-blank field validators, defined once and imported by every consumer
 
@@ -18,10 +18,6 @@ See [deterministic-validator-function.md](./deterministic-validator-function.md)
 ## Traceability Registry + record/skip Idiom - a name-keyed registry records where every check's requirement comes from; an unregistered check name is itself treated as an invariant failure rather than a silent pass
 
 See [traceability-registry.md](./traceability-registry.md).
-
-## Multi-Transport Adapter over One Shared Contract - inprocess/mcp/rest clients and server adapters all translate the same domain contract and pydantic wire schema through one shared parsing/marshaling function per direction
-
-See [multi-transport-adapter.md](./multi-transport-adapter.md).
 
 ## Lazy Optional-Dependency Import - heavy or transport-specific SDKs (mcp, ranx, httpx, uvicorn) are imported inside the function that needs them, never at module top level
 

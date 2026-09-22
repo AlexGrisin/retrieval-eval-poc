@@ -11,15 +11,12 @@ in five is the finding, not something to rerun away.
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import allure
 import pytest
 
-from harness.agent.runner import evaluate_agent_response
-from harness.definitions.agent_responses import load_agent_response
 from harness.execution import CapturedRuns, CaseExecutions, CaseResults
-from harness.runner import run_case
+from harness.runner import DEFAULT_SERVER_URL, resolve_server_url
 from tests.support import ROOT, load_cases
 
 RESPONSE_DIR = ROOT / "fixtures" / "agent_responses"
@@ -27,13 +24,9 @@ RESPONSE_DIR = ROOT / "fixtures" / "agent_responses"
 
 def pytest_addoption(parser):
     parser.addoption(
-        "--transport", action="store", default="inprocess",
-        choices=["inprocess", "mcp", "rest"],
-        help="inprocess calls the fake directly; mcp crosses a real protocol boundary",
-    )
-    parser.addoption(
-        "--corpus", action="store", default=str(ROOT / "fixtures" / "corpus.yaml"),
-        help="override the fixture corpus, e.g. a mutated one for a sabotage drill",
+        "--server-url", action="store", default=None,
+        help=f"MCP streamable-HTTP URL of the knowledge server; falls back to "
+             f"the KS_SERVER_URL env var / .env, then {DEFAULT_SERVER_URL}",
     )
     parser.addoption(
         "--judge", action="store_true", default=False,
@@ -42,14 +35,18 @@ def pytest_addoption(parser):
 
 
 def pytest_sessionstart(session):
-    """Do not let xdist execute one real evaluation case in several workers."""
+    """Do not let xdist execute one real evaluation case in several workers.
+
+    Every test in this suite is now evaluation-marked and hits the live target,
+    so parallel workers are never supported -- each would get its own session
+    cache and could execute the same real case against the real server more
+    than once.
+    """
     worker_count = getattr(session.config.option, "numprocesses", None)
-    mark_expression = (session.config.option.markexpr or "").strip()
-    if worker_count and mark_expression != "framework":
+    if worker_count:
         raise pytest.UsageError(
-            "parallel workers are supported only with exactly '-m framework'; "
-            "evaluation and live-judge runs must be single-process so every case "
-            "executes once"
+            "parallel workers are not supported; every case executes against the "
+            "real target and must run exactly once"
         )
 
 
@@ -149,24 +146,19 @@ def _allure_case_report(request):
 
 
 @pytest.fixture(scope="session")
-def transport(request) -> str:
-    return request.config.getoption("--transport")
+def server_url(request) -> str:
+    return resolve_server_url(request.config.getoption("--server-url"))
 
 
 @pytest.fixture(scope="session")
-def corpus(request) -> Path:
-    return Path(request.config.getoption("--corpus"))
+def case_executions(server_url) -> CaseExecutions:
+    """Provide lazy, case-isolated execution and capture against the live server.
 
-
-@pytest.fixture(scope="session")
-def case_executions(transport, corpus) -> CaseExecutions:
-    """Provide lazy, case-isolated execution and capture.
-
-    The POC runs fixture-backed retrieval and then loads a saved final answer. Real
-    integration replaces this provider with an agent adapter that captures retrieval
-    and the final answer from one execution.
+    Retrieval is real; the final answer is still a saved fixture -- real agent
+    integration replaces this provider with an adapter that captures both from one
+    execution.
     """
-    return CaseExecutions(load_cases(), corpus, transport, RESPONSE_DIR)
+    return CaseExecutions(load_cases(), server_url, RESPONSE_DIR)
 
 
 @pytest.fixture(scope="session")
@@ -179,37 +171,3 @@ def case_results(case_executions) -> CaseResults:
 def captured_runs(case_executions) -> CapturedRuns:
     """Expose answer evaluation over each case's single captured execution."""
     return CapturedRuns(case_executions)
-
-
-@pytest.fixture
-def _framework_id(request):
-    """Indirect parametrization target used only to expose readable pytest IDs."""
-    return request.param
-
-
-@pytest.fixture(scope="session")
-def synthetic_case() -> dict:
-    """Fixed local case for framework tests; never uses the selected target."""
-    return next(
-        case for case in load_cases()
-        if case["id"] == "case-001-rounding-fix-ranking"
-    )
-
-
-@pytest.fixture(scope="session")
-def synthetic_retrieval_result(synthetic_case) -> dict:
-    return run_case(
-        synthetic_case,
-        ROOT / "fixtures" / "corpus.yaml",
-        "inprocess",
-    )
-
-
-@pytest.fixture(scope="session")
-def synthetic_agent_run(synthetic_case, synthetic_retrieval_result):
-    response = load_agent_response(RESPONSE_DIR / "case-001-rounding-fix-ranking.yaml")
-    return evaluate_agent_response(
-        case=synthetic_case,
-        retrieval_result=synthetic_retrieval_result,
-        response=response,
-    )

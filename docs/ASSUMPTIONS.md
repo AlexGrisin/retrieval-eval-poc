@@ -14,13 +14,60 @@ Confidence scale: **high** = observed directly in the repo, only the intent is o
 
 ## Evaluation validity
 
-### Relevance labels are synthetic and unreviewed
+### The harness's own logic has no offline test coverage
 
-- `expect.relevant` grades in `cases/*.yaml` were authored alongside the fixture corpus,
-  not produced by an independent reviewer. Ranking metrics therefore measure the
-  instrument, not retrieval quality.
+- 2026-09-22: every framework-marked test was removed (decision: evaluate only via
+  the live target, `tests/*.py` now contain only `evaluation`-marked tests). This
+  deleted the harness's entire unit/contract-test layer, not just mock-era leftovers:
+  `harness/ranking_metrics.py`'s `score_case` adapter against known relevance
+  examples, `harness/baselines.py`'s manifest/compatibility/regression logic
+  (`test_06_baselines.py`, deleted whole), `harness/judges/*`'s prompt construction,
+  strict schema handling, and cache-key/reuse behavior, and every case-definition
+  edge case (missing persona, malformed entity identity, unknown expectation key,
+  etc. -- still enforced at runtime by `validate_case`, just no longer independently
+  tested). None of this logic is now exercised except transitively by running the
+  full suite against a live server and a live LLM Gateway.
+- Consequence: a regression in, say, `score_case`'s NDCG math would only surface as a
+  wrong number in a live case's metrics, not as a failing unit test naming the bug.
+  Two specific cross-checks that used to fail cleanly at definition time now fail
+  differently or not at all: a case's `persona` naming an undefined `personas/*.yaml`
+  file passes validation silently (nothing resolves it); a case's `answer_evaluation.rubrics`
+  naming an undefined `rubrics/*.yaml` file now surfaces as an unhandled `KeyError`
+  inside a live judge run (`harness/judges/runner.py:173`, `rubrics[rubric_name]`)
+  instead of a clean `CaseSpecError` before anything ran.
+  pytest-xdist was dropped (`tests/conftest.py::pytest_sessionstart` now refuses `-n`
+  unconditionally) since every test is single-process by necessity now.
+- Confidence: high (direct consequence of a deliberate decision). Resolve in:
+  [ARCHITECTURE.md](./ARCHITECTURE.md) if this harness later needs isolated
+  regression coverage independent of the live server and Gateway.
+
+### Relevance labels predate the corpus they are now measured against
+
+- `expect.relevant` grades in `cases/*.yaml` were authored against the retired local
+  fixture corpus, not produced by an independent reviewer, and not re-derived for the
+  real knowledge server's actual corpus (2026-09-22: the harness now evaluates that
+  server exclusively). This is a real, observed gap, not a theoretical one: case-001
+  scores `recall@10=0.6667` live versus `1.0` against the old fixture, because one
+  graded-relevant entity does not rank in the real top 10 for that query — the case's
+  own `why` field already predicted this. Ranking metrics therefore measure the
+  instrument against labels of unconfirmed accuracy for the current corpus, not
+  reviewed retrieval quality.
 - Confidence: high. Resolve in: `cases/*.yaml` + [CONTEXT.md](./CONTEXT.md) once a
-  reviewed reference set exists.
+  reviewer re-derives relevance labels against the live corpus.
+
+### Baseline compatibility metadata is an unverifiable operator claim
+
+- The real knowledge server reports no version or corpus snapshot of itself
+  (`/healthz` returns only `{"status": "ok"}`; `/version` 404s — confirmed against a
+  running instance, not assumed). `--write-baseline`/`--baseline` therefore *require*
+  `--system-metadata` (`harness/baselines.py::missing_required_system_metadata`) to
+  state `corpus_snapshot`, `knowledge_server_version`, and the rest of the fields
+  previously computed from the local fixture. The harness has no way to verify these
+  claims are true; a baseline's compatibility guarantee is now only as good as whoever
+  ran `--write-baseline` and what they actually typed.
+- Confidence: high. Resolve in: [ARCHITECTURE.md](./ARCHITECTURE.md) once the
+  knowledge server exposes a queryable version/snapshot endpoint the harness can read
+  instead of trusting.
 
 ### Request/response contracts and rubrics are drafts pending approval
 
@@ -38,15 +85,17 @@ Confidence scale: **high** = observed directly in the repo, only the intent is o
 
 ### Persona is declared and reported, not enforced
 
-- Every case declares a required `persona` field, an ID resolved against
-  `personas/*.yaml` (`id`, `name`, `description`, `traits`; validated and cross-checked
-  in `harness/definitions/personas.py` and `tests/test_01_definitions.py`, same pattern
-  as the rubric registry). It is recorded in the run trace and Allure evidence. No
-  target — neither the real knowledge server nor this repo's fixture-backed stand-in
-  (`skill/fake_server.py`) — scopes results by caller, so this cannot detect a
-  permission leak, and the harness must never post-filter results by persona and assert
-  on its own filter. Role-scoped retrieval stays unmeasurable until the knowledge server
-  defines and implements caller identity.
+- Every case declares a required `persona` field, an ID meant to resolve against
+  `personas/*.yaml` (`id`, `name`, `description`, `traits`). `harness/definitions/personas.py`
+  still validates each persona file's own shape, but the cross-check that a case's
+  `persona` actually names a committed file (`test_case_personas_are_known`) was
+  removed along with every other framework test on 2026-09-22 -- nothing runs it now.
+  A typo in a case's `persona` currently fails silently rather than at definition time.
+  It is recorded in the run trace and Allure evidence. The real knowledge server does
+  not scope results by caller, so this cannot detect a permission leak, and the
+  harness must never post-filter results by persona and assert on its own filter.
+  Role-scoped retrieval stays unmeasurable until the knowledge server defines and
+  implements caller identity.
 - Nothing consumes a persona's `description`/`traits` yet. They exist for the deferred
   slices that would (persona-specific query phrasing, persona-aware answer judging) —
   see `personas/partner-integrator.yaml`, committed but not referenced by any case.
@@ -127,17 +176,15 @@ Confidence scale: **high** = observed directly in the repo, only the intent is o
   [PATTERNS/fixture-load-and-validate.md](./PATTERNS/fixture-load-and-validate.md) —
   promote to a standalone pattern if a second numbered-sequence fixture type appears.
 
-### Latency numbers are real timing, but a fake backend
+### Latency has no approved pass/fail threshold yet
 
-- `result["latency_ms"]` (see `LATENCY-MEASUREMENT-PLAN.md`) times each
-  `SpyClient.search()` call for real — `inprocess` mode is near-zero (in-memory
-  Python call), `mcp`/`rest` show real `asyncio`/serialization round-trip
-  overhead, but none of it is a real network+server latency signal yet since
-  both transports wrap in-memory servers, not a live one. No pass/fail budget
-  exists — report-only until a real threshold is approved against real numbers.
-- Confidence: high. Resolve in: [ARCHITECTURE.md](./ARCHITECTURE.md) +
-  `../TASKS.md` once the real Knowledge Server is connected and a threshold is
-  reviewed.
+- `result["latency_ms"]` (see `LATENCY-MEASUREMENT-PLAN.md`) now times each
+  `SpyClient.search()` call against the real knowledge server over MCP — a genuine
+  network+server signal, not an in-memory approximation (resolved: the harness only
+  evaluates the real server as of 2026-09-22). What remains open is a reviewed
+  pass/fail budget; latency stays report-only until one is approved.
+- Confidence: high. Resolve in: [ARCHITECTURE.md](./ARCHITECTURE.md) + `../TASKS.md`
+  once a threshold is reviewed.
 
 ## kb_search migration (in progress)
 

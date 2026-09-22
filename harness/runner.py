@@ -1,9 +1,10 @@
-"""Case runner: loads cases, drives the skill, scores, emits a run record.
+"""Case runner: loads cases, drives the skill against the real knowledge server,
+scores, emits a run record.
 
 Usage:
     python3 -m harness.runner
-    python3 -m harness.runner --write-baseline baselines/mock.json
-    python3 -m harness.runner --baseline baselines/mock.json
+    python3 -m harness.runner --write-baseline baselines/live.json --system-metadata metadata.json
+    python3 -m harness.runner --baseline baselines/live.json
 
 Exit code is non-zero if any invariant fails, or if a metric regressed against
 the baseline beyond tolerance. Invariants and metrics are reported separately and
@@ -14,8 +15,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
+
+from dotenv import dotenv_values
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -25,6 +29,7 @@ from harness.baselines import (  # noqa: E402
     build_run_manifest,
     compare_records,
     load_record,
+    missing_required_system_metadata,
     write_record,
 )
 from harness.validators import describe, render_inventory  # noqa: E402
@@ -41,42 +46,37 @@ from harness.validators.retrieval import (  # noqa: E402
     check_must_not_return,
 )
 from harness.ranking_metrics import score_case, summarize  # noqa: E402
-from skill.client import SpyClient  # noqa: E402
-from skill.fake_server import FakeKnowledgeGraph  # noqa: E402
+from skill.client import MCPKnowledgeClient, SpyClient  # noqa: E402
 from skill.skill import SearchSkill  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
+ENV_FILE = ROOT / ".env"
+DEFAULT_SERVER_URL = "http://127.0.0.1:8000/mcp"
 
 
-def make_skill(corpus: Path, transport: str) -> tuple[SearchSkill, SpyClient]:
-    """Same skill, same backend, different seam.
+def resolve_server_url(cli_value: str | None) -> str:
+    """CLI flag > .env's KS_SERVER_URL > process env > the documented local default.
 
-    inprocess: the skill calls a Python object. Fast, and what CI should use.
-    mcp:       the skill crosses a declared MCP tool schema and a JSON round trip.
-    rest:      the skill crosses a declared REST/JSON schema (FastAPI, in-process via
-               httpx's ASGITransport -- no port bound).
-    Both network transports are the only modes in which the wire contract is server
-    enforced rather than assumed; running the same cases through both is how "one
-    contract, multiple surfaces" gets proven rather than hoped for.
+    Same precedence as JudgeConfig.from_env (harness/judges/models.py): a
+    project-local .env is authoritative when present, CI normally has none and
+    falls back to its process environment.
     """
-    if transport == "mcp":
-        from server_mcp import build_server
-        from skill.client import MCPKnowledgeClient
+    if cli_value:
+        return cli_value
+    file_value = dotenv_values(ENV_FILE).get("KS_SERVER_URL")
+    if isinstance(file_value, str) and file_value.strip():
+        return file_value
+    return os.getenv("KS_SERVER_URL", DEFAULT_SERVER_URL)
 
-        inner = MCPKnowledgeClient(build_server(corpus))
-    elif transport == "rest":
-        from server_rest import build_app
-        from skill.client import RESTKnowledgeClient
 
-        inner = RESTKnowledgeClient(build_app(corpus))
-    else:
-        inner = FakeKnowledgeGraph(corpus)
-    spy = SpyClient(inner)
+def make_skill(server_url: str) -> tuple[SearchSkill, SpyClient]:
+    """Same skill, always the same seam: a real MCP boundary to the knowledge server."""
+    spy = SpyClient(MCPKnowledgeClient(server_url))
     return SearchSkill(spy), spy
 
 
-def run_case(case: dict, corpus: Path, transport: str = "inprocess") -> dict:
-    skill, spy = make_skill(corpus, transport)
+def run_case(case: dict, server_url: str) -> dict:
+    skill, spy = make_skill(server_url)
     domain, expect = case["domain"], case.get("expect", {}) or {}
     invariant_failures: list[str] = []
     checks: list[dict] = []
@@ -138,20 +138,14 @@ def run_case(case: dict, corpus: Path, transport: str = "inprocess") -> dict:
     if "probe_invalid_request" in case:
         # Send invalid input straight to the server, bypassing the skill. This proves
         # enforcement exists at the trust boundary rather than only in client code.
-        if transport in ("mcp", "rest"):
-            detail = check_server_rejects_invalid_request(
-                spy, case["query"], domain, case["probe_invalid_request"], transport
-            )
-            record(
-                "contract:server_rejects_invalid_request",
-                detail is None,
-                detail or "",
-            )
-        else:
-            skip(
-                "contract:server_rejects_invalid_request",
-                "requires --transport mcp or rest",
-            )
+        detail = check_server_rejects_invalid_request(
+            spy, case["query"], domain, case["probe_invalid_request"]
+        )
+        record(
+            "contract:server_rejects_invalid_request",
+            detail is None,
+            detail or "",
+        )
 
     # --- invariants on the result set ------------------------------------
     if result is None:
@@ -218,16 +212,14 @@ def run_case(case: dict, corpus: Path, transport: str = "inprocess") -> dict:
     }
 
 
-def run_case_repeated(
-    case: dict, corpus: Path, n: int, mode: str, transport: str = "inprocess"
-) -> dict:
+def run_case_repeated(case: dict, server_url: str, n: int) -> dict:
     """Run one case n times and collapse the executions into one verdict.
 
     Three verdicts rather than two. A case that passes sometimes and fails
     sometimes is FLAKY, which is worse than a clean FAIL: it means the suite
     cannot tell you anything reliable until the flakiness is explained.
     """
-    runs = [run_case(case, corpus, transport) for _ in range(n)]
+    runs = [run_case(case, server_url) for _ in range(n)]
     passes = [r["passed"] for r in runs]
 
     if all(passes):
@@ -251,21 +243,6 @@ def run_case_repeated(
 
     failures = sorted({f for r in runs for f in r["invariant_failures"]})
 
-    # A deterministic backend that is not deterministic is a defect, not noise.
-    if mode.startswith("mock") and n > 1:
-        unstable = [k for k, s in distribution.items() if s["std_dev"] > 0]
-        if unstable:
-            failures.append(
-                f"nondeterministic on a deterministic backend: {unstable} varied "
-                f"across {n} executions with identical compatibility inputs"
-            )
-            verdict = "FLAKY"
-        if verdict == "FLAKY" and not unstable:
-            failures.append(
-                f"invariant outcome varied across {n} executions with an identical "
-                "run manifest"
-            )
-
     return {
         "id": case["id"],
         "executions": n,
@@ -287,10 +264,10 @@ def run_case_repeated(
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--cases", default=str(ROOT / "cases"))
-    ap.add_argument("--corpus", default=str(ROOT / "fixtures" / "corpus.yaml"))
     ap.add_argument(
-        "--transport", choices=["inprocess", "mcp", "rest"], default="inprocess",
-        help="inprocess calls the fake directly; mcp/rest cross a real protocol boundary",
+        "--server-url",
+        help=f"MCP streamable-HTTP URL of the knowledge server; falls back to "
+             f"the KS_SERVER_URL env var / .env, then {DEFAULT_SERVER_URL}",
     )
     ap.add_argument(
         "--trace", action="store_true",
@@ -324,15 +301,9 @@ def main() -> int:
         print(render_inventory(markdown=args.markdown))
         return 0
 
-    corpus = Path(args.corpus)
+    server_url = resolve_server_url(args.server_url)
     cases_path = Path(args.cases)
     cases = load_cases(cases_path)
-    server = FakeKnowledgeGraph(corpus)
-    mode = server.mode
-    # Separate mode value per transport, so a baseline from one seam can never be
-    # compared against another. Different seam, different measurement.
-    if args.transport != "inprocess":
-        mode = f"{mode}-{args.transport}"
     system_metadata = None
     if args.system_metadata:
         try:
@@ -342,15 +313,24 @@ def main() -> int:
         except (OSError, json.JSONDecodeError) as exc:
             print(f"invalid --system-metadata: {exc}", file=sys.stderr)
             return 2
+    if args.write_baseline or args.baseline:
+        # The live server reports no version/snapshot of its own, so a manifest
+        # that will be persisted or compared must have the operator state what
+        # it cannot self-report. A plain run (no baseline flags) does not need
+        # this -- see build_run_manifest's docstring.
+        missing = missing_required_system_metadata(system_metadata)
+        if missing:
+            print(
+                "--write-baseline/--baseline require --system-metadata to state "
+                f"what the plain run above cannot self-report; missing: {missing}",
+                file=sys.stderr,
+            )
+            return 2
     try:
         manifest = build_run_manifest(
             root=ROOT,
-            corpus=corpus,
             cases=cases_path,
-            corpus_version=server.corpus_version,
-            transport=args.transport,
             executions=args.executions,
-            mode=mode,
             system_metadata=system_metadata,
             change_under_test=args.change_under_test,
         )
@@ -358,7 +338,7 @@ def main() -> int:
         print(f"cannot build run manifest: {exc}", file=sys.stderr)
         return 2
     results = [
-        run_case_repeated(c, corpus, args.executions, mode, args.transport)
+        run_case_repeated(c, server_url, args.executions)
         for c in cases
     ]
     record = {"manifest": manifest, "cases": results}

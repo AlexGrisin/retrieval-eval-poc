@@ -24,8 +24,6 @@ INSTRUMENT_MANAGED_FIELDS = {
     "mode",
     "transport",
     "executions",
-    "corpus_version",
-    "corpus_hash",
     "case_set_hash",
     "contracts_hash",
     "orchestration_hash",
@@ -33,6 +31,46 @@ INSTRUMENT_MANAGED_FIELDS = {
     "python",
     "mcp_sdk",
 }
+
+# The live server reports no version/snapshot of its own (no /version endpoint;
+# confirmed against a running instance -- /healthz returns only {"status": "ok"}).
+# These can no longer be computed by the instrument, so a baseline write or
+# comparison must have the operator state them explicitly via --system-metadata.
+# See the worked example in ARCHITECTURE.md section 5.
+REQUIRED_SYSTEM_METADATA = {
+    "compatibility": frozenset({
+        "environment_class",
+        "corpus_snapshot",
+        "index_schema_version",
+        "chunking_version",
+        "embedding_model",
+        "embedding_model_version",
+        "embedding_dimensions",
+        "vocabulary_version",
+        "ontology_version",
+        "permission_policy_version",
+    }),
+    "target": frozenset({
+        "knowledge_server_version",
+        "graph_vector_store",
+        "graph_vector_store_version",
+        "index_build_id",
+        "retrieval_configuration_version",
+    }),
+}
+
+
+def missing_required_system_metadata(system_metadata: dict[str, Any] | None) -> list[str]:
+    """Dotted paths the operator must supply before a baseline write or compare."""
+    metadata = system_metadata or {}
+    missing = []
+    for section, keys in REQUIRED_SYSTEM_METADATA.items():
+        provided = metadata.get(section)
+        provided = provided if isinstance(provided, dict) else {}
+        for key in sorted(keys):
+            if provided.get(key) in (None, ""):
+                missing.append(f"{section}.{key}")
+    return missing
 
 
 class BaselineFormatError(ValueError):
@@ -124,20 +162,20 @@ def _merge(base: dict[str, Any], override: Any, name: str) -> dict[str, Any]:
 def build_run_manifest(
     *,
     root: Path,
-    corpus: Path,
     cases: Path,
-    corpus_version: str,
-    transport: str,
     executions: int,
-    mode: str,
     system_metadata: dict[str, Any] | None = None,
     change_under_test: Iterable[str] = (),
 ) -> dict[str, Any]:
-    """Build a production-shaped manifest for the currently selected target.
+    """Build a production-shaped manifest for the live knowledge server.
 
-    ``system_metadata`` is the seam used by a real Knowledge Server integration.
-    Its ``compatibility`` values describe controlled inputs and configuration;
-    ``target`` values describe the implementation whose version may be compared.
+    ``system_metadata`` is required by ``missing_required_system_metadata`` before
+    a baseline write or compare, but this function itself stays usable without it
+    so a plain evaluation run never needs to fabricate values -- see
+    ``harness/runner.py``'s CLI, which enforces completeness only when
+    ``--write-baseline``/``--baseline`` is given. Its ``compatibility`` values
+    describe controlled inputs and configuration; ``target`` values describe the
+    implementation whose version may be compared.
     """
     metadata = system_metadata or {}
     if not isinstance(metadata, dict):
@@ -148,14 +186,11 @@ def build_run_manifest(
             f"system metadata has unknown section(s): {sorted(unknown_metadata)}"
         )
 
-    corpus_hash = hash_paths(root, corpus)
     case_set_hash = hash_paths(root, cases)
     contracts_hash = hash_paths(
         root,
         root / "skill" / "contracts.py",
         root / "skill" / "schemas.py",
-        root / "server_mcp.py",
-        root / "server_rest.py",
     )
     orchestration_hash = hash_paths(
         root,
@@ -168,38 +203,20 @@ def build_run_manifest(
     ranking_hash = hash_paths(root, root / "harness" / "ranking_metrics.py")
     dependency_lock_hash = hash_paths(root, root / "uv.lock")
     retrieval_skill_version = hash_paths(root, root / "skill")
-    server_paths = [root / "skill" / "fake_server.py"]
-    if transport == "mcp":
-        server_paths.append(root / "server_mcp.py")
-    elif transport == "rest":
-        server_paths.append(root / "server_rest.py")
-    knowledge_server_version = hash_paths(root, *server_paths)
 
     common = {
         "evaluation_profile": "retrieval-and-agent-read-path",
         "evaluation_level": "component",
         "target_interface": "knowledge-server",
-        "environment_class": "controlled-synthetic",
-        "mode": mode,
-        "transport": transport,
+        "mode": "live",
+        "transport": "mcp",
         "executions": executions,
-        "corpus_version": corpus_version,
-        "corpus_hash": corpus_hash,
         "case_set_hash": case_set_hash,
         "contracts_hash": contracts_hash,
         "orchestration_hash": orchestration_hash,
         "dependency_lock_hash": dependency_lock_hash,
         "python": sys.version.split()[0],
         "mcp_sdk": _package_version("mcp"),
-        "corpus_snapshot": f"{corpus_version}:{corpus_hash}",
-        "index_schema_version": "fixture-v1",
-        "chunking_version": "not-applicable",
-        "embedding_model": "not-applicable-token-overlap",
-        "embedding_model_version": "not-applicable",
-        "embedding_dimensions": 0,
-        "vocabulary_version": "fixture-v1",
-        "ontology_version": "fixture-v1",
-        "permission_policy_version": "fixture-scope-v1",
     }
     compatibility_metadata = metadata.get("compatibility")
     if compatibility_metadata is not None:
@@ -216,12 +233,7 @@ def build_run_manifest(
     common = _merge(common, compatibility_metadata, "compatibility")
 
     target = {
-        "knowledge_server_version": knowledge_server_version,
         "retrieval_skill_version": retrieval_skill_version,
-        "graph_vector_store": "fixture-memory",
-        "graph_vector_store_version": "fixture-v1",
-        "index_build_id": corpus_hash,
-        "retrieval_configuration_version": "token-overlap-v1",
     }
     target = _merge(target, metadata.get("target"), "target")
 

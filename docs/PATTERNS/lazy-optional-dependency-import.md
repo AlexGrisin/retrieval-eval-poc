@@ -8,11 +8,9 @@ the module (and running the default fast in-process suite) never pays
 their import cost and never requires them to be installed at all.
 
 **Evidence (read directly):**
-- `skill/client.py` — `MCPKnowledgeClient._call` imports `mcp.client.client.Client`; `RESTKnowledgeClient._call` imports `httpx`
-- `harness/validators/contract.py` — `check_server_rejects_invalid_request` imports `mcp.client.client.Client` in its `mcp` branch and `httpx` in its `rest` branch
+- `skill/client.py` — `MCPKnowledgeClient._call` imports `mcp.client.client.Client`
+- `harness/validators/contract.py` — `check_server_rejects_invalid_request` imports `mcp.client.client.Client`
 - `harness/ranking_metrics.py` — `_ranx_api()` imports `ranx` (and sets cache-directory env vars first, since importing `ranx` pulls in `ir_datasets` and `matplotlib`, neither used directly)
-- `harness/runner.py` — `make_skill()` imports `server_mcp.build_server` / `server_rest.build_app` only inside the branch matching the selected `--transport`
-- `server_rest.py` — `main()` imports `uvicorn` only when actually serving (it is a runtime-only dependency, not in `pyproject.toml` — see `docs/DEPENDENCIES.md`)
 
 ## Template / Example
 

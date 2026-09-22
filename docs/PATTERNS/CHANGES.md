@@ -1,5 +1,19 @@
 # PATTERNS CHANGES
 
+## [2026-09-22] Trimmed pytest-case-check-marker.md
+
+The `framework_id()` / `-m framework` half of the pattern was removed along with the
+entire framework-marked test layer (decision: evaluate only via the live target).
+The `case_check` marker and traceability-marker half is unaffected and still current.
+
+## [2026-09-22] Removed multi-transport-adapter.md
+
+The evaluation target is now the real knowledge server only, over MCP.
+`skill/fake_server.py`, `server_mcp.py`, `server_rest.py`, `RESTKnowledgeClient`,
+and the `inprocess`/`mcp`/`rest` transport choice are all gone, so the pattern's
+own premise (interchangeable transports over one shared contract) no longer
+holds -- there is one client, one transport, nothing to adapt between.
+
 ## [2026-08-28] Created docs/PATTERNS/ (install mode, no prior directory existed)
 
 Ran Phase 5 pattern extraction against docs/CODEMAP.md-scoped modules
