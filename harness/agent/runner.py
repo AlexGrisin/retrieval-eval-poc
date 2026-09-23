@@ -10,10 +10,12 @@ from harness.agent.models import (
 )
 from harness.definitions.cases import get_answer_evaluation
 from harness.validators.answer import (
+    check_coverage_line,
     check_citations_were_retrieved,
     check_expected_answer_status,
     check_must_not_cite,
     check_required_citations,
+    check_required_phrases,
     validate_agent_response_contract,
 )
 from harness.validators.registry import describe
@@ -34,6 +36,10 @@ def applicable_answer_checks(case: dict) -> tuple[str, ...]:
         names.append("answer:required_citations")
     if evaluation.expect.must_not_cite:
         names.append("answer:must_not_cite")
+    if evaluation.expect.required_phrases:
+        names.append("answer:required_phrases")
+    if evaluation.expect.requires_coverage_line:
+        names.append("answer:coverage_line")
     return tuple(names)
 
 
@@ -111,6 +117,13 @@ def evaluate_agent_response(
                 "answer:must_not_cite",
                 check_must_not_cite(parsed, evaluation.expect.must_not_cite),
             )
+        if evaluation.expect.required_phrases:
+            record(
+                "answer:required_phrases",
+                check_required_phrases(parsed, evaluation.expect.required_phrases),
+            )
+        if evaluation.expect.requires_coverage_line:
+            record("answer:coverage_line", check_coverage_line(parsed))
 
     answer_passed = all(check.status != "fail" for check in checks)
     retrieval_passed = bool(retrieval_result.get("passed"))

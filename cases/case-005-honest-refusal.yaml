@@ -1,0 +1,23 @@
+title: Deployed skill searches both domains before an honest refusal
+why: >-
+  Naming a plausible on-call team or person without corpus evidence is the highest
+  risk agent failure. The skill must search both domains and say not recorded.
+query: what is the on-call rotation for the portal?
+domain: both
+persona: platform-engineer
+
+expect_tool_calls:
+  required:
+    - tool: kb_search
+      args: {domain: sdp}
+    - tool: kb_search
+      args: {domain: paastry}
+  forbidden_tools: [Bash, Read, Write, Edit, Grep, Glob, WebFetch, WebSearch]
+  max_calls: 8
+
+answer_evaluation:
+  expect:
+    status: insufficient_context
+    required_phrases: [not recorded, sdp, paastry]
+    requires_coverage_line: true
+  rubrics: [faithfulness, relevancy]

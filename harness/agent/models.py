@@ -66,6 +66,8 @@ class AnswerExpectations(BaseModel):
     status: Literal["answered", "insufficient_context"] | None = None
     required_citations: list[Citation] = Field(default_factory=list)
     must_not_cite: list[Citation] = Field(default_factory=list)
+    required_phrases: list[str] = Field(default_factory=list)
+    requires_coverage_line: bool = False
 
     @field_validator("required_citations", "must_not_cite")
     @classmethod
@@ -87,6 +89,15 @@ class AnswerExpectations(BaseModel):
                 f"citations cannot be both required and forbidden: {overlap}"
             )
         return self
+
+    @field_validator("required_phrases")
+    @classmethod
+    def required_phrases_are_unique_and_nonblank(cls, value: list[str]) -> list[str]:
+        if any(not phrase.strip() for phrase in value):
+            raise ValueError("required phrases must not be blank")
+        if len(value) != len(set(value)):
+            raise ValueError("required phrases must be unique")
+        return value
 
 
 class AnswerEvaluationSpec(BaseModel):

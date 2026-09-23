@@ -1,19 +1,5 @@
-"""Deterministic, zero-tolerance validation of executed system behavior."""
+"""Deterministic validation of deployed skill behavior."""
 
-from .registry import (
-    ALWAYS_APPLICABLE,
-    ANSWER_CHECKS,
-    CHECKS,
-    applies_to,
-    describe,
-    render_inventory,
-)
+from .registry import ANSWER_CHECKS, CHECKS, describe
 
-__all__ = [
-    "ALWAYS_APPLICABLE",
-    "ANSWER_CHECKS",
-    "CHECKS",
-    "applies_to",
-    "describe",
-    "render_inventory",
-]
+__all__ = ["ANSWER_CHECKS", "CHECKS", "describe"]

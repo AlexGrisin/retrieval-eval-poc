@@ -1,0 +1,36 @@
+title: Deployed skill reports the recorded paastry on-call fact without inventing a schedule
+why: >-
+  The paastry runbook records a generic escalation policy, not a roster, schedule,
+  or paging tool. This protects against converting a partial operational fact into
+  an invented on-call process.
+query: what is the on-call escalation for crumb-gateway?
+domain: paastry
+persona: platform-engineer
+
+expect_tool_calls:
+  required:
+    - tool: kb_search
+      args:
+        domain: paastry
+        query_contains: crumb-gateway
+        limit_at_least: 20
+    - tool: kb_fetch
+      args:
+        domain: paastry
+        label: DocChunk
+        key: runbook-crumb-gateway#0
+  forbidden_tools: [Bash, Read, Write, Edit, Grep, Glob, WebFetch, WebSearch]
+  max_calls: 8
+
+expect:
+  required_entities:
+    - DocChunk/runbook-crumb-gateway#0
+
+answer_evaluation:
+  expect:
+    status: answered
+    required_citations:
+      - {label: DocChunk, key: runbook-crumb-gateway#0}
+    required_phrases: [standard escalation policy, unverified]
+    requires_coverage_line: true
+  rubrics: [faithfulness, relevancy]

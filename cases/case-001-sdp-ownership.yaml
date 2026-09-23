@@ -1,0 +1,43 @@
+title: Deployed skill resolves ownership with a typo and reports the contradiction
+why: >-
+  This is the app's primary ownership journey. It must exercise the packaged skill,
+  fuzzy search, graph traversal, contradiction disclosure, trust, and citations.
+query: who owns scorebord?
+domain: sdp
+persona: platform-engineer
+
+expect_tool_calls:
+  required:
+    - tool: kb_search
+      args:
+        domain: sdp
+        query_contains: scorebord
+        limit_at_least: 20
+    - tool: kb_related
+      args:
+        domain: sdp
+        label: Service
+        key: scoreboard
+        relationships_contains: [OWNS]
+        direction: both
+        depth_at_least: 2
+  forbidden_tools: [Bash, Read, Write, Edit, Grep, Glob, WebFetch, WebSearch]
+  max_calls: 8
+
+expect:
+  required_entities:
+    - Service/scoreboard
+    - Team/dim-platin
+
+answer_evaluation:
+  expect:
+    status: answered
+    required_citations:
+      - {label: Service, key: scoreboard}
+      - {label: Team, key: dim-platin}
+    required_phrases: [dim-platin, pin-orbit, unverified]
+    requires_coverage_line: true
+  rubrics: [faithfulness, relevancy, answer_correctness]
+  reference_answer: >-
+    Team dim-platin owns scoreboard. The recorded owner decision overrides the stale
+    pin-orbit catalog value, and the supporting note remains unverified.

@@ -1,0 +1,42 @@
+title: Deployed skill traces a commit through its pull request to the story
+why: >-
+  A search-only surrogate cannot prove the commit-to-pull-request-to-story graph
+  recipe or that the skill fetches the story before explaining the change.
+query: why was packages/app/src/App.tsx changed in commit de715cc45970?
+domain: sdp
+persona: platform-engineer
+
+expect_tool_calls:
+  required:
+    - tool: kb_related
+      args:
+        domain: sdp
+        label: Commit
+        key: github.com/SyscoCorporation/sysco-internal-developer-portal/packages/app@de715cc45970
+        direction: outgoing
+        depth_at_least: 2
+    - tool: kb_fetch
+      args:
+        domain: sdp
+        label: Story
+        key: DE-1141
+  forbidden_tools: [Bash, Read, Write, Edit, Grep, Glob, WebFetch, WebSearch]
+  max_calls: 10
+
+expect:
+  required_entities:
+    - Story/DE-1141
+    - PullRequest/github.com/SyscoCorporation/sysco-internal-developer-portal/packages/app#391
+
+answer_evaluation:
+  expect:
+    status: answered
+    required_citations:
+      - {label: Story, key: DE-1141}
+      - {label: PullRequest, key: "github.com/SyscoCorporation/sysco-internal-developer-portal/packages/app#391"}
+    required_phrases: [lazy, DE-1141, Jira, connected]
+    requires_coverage_line: true
+  rubrics: [faithfulness, relevancy, answer_correctness]
+  reference_answer: >-
+    DE-1141 and pull request 391 introduced React.lazy code splitting for custom
+    plugin routes, followed by lazy-initialization and error-handling fixes.

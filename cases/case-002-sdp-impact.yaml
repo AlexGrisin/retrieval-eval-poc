@@ -1,0 +1,36 @@
+title: Deployed skill uses safe incoming depth for impact analysis
+why: >-
+  Default-depth or outgoing dependency traversal gives an incomplete or reversed
+  impact answer even when every individual MCP call succeeds.
+query: what is impacted by a change to scoreboard-backend?
+domain: sdp
+persona: platform-engineer
+
+expect_tool_calls:
+  required:
+    - tool: kb_related
+      args:
+        domain: sdp
+        label: Service
+        key: scoreboard-backend
+        relationships_contains: [DEPENDS_ON]
+        direction: incoming
+        depth_at_least: 4
+  forbidden_tools: [Bash, Read, Write, Edit, Grep, Glob, WebFetch, WebSearch]
+  max_calls: 6
+
+expect:
+  required_entities:
+    - Service/backend
+
+answer_evaluation:
+  expect:
+    status: answered
+    required_citations:
+      - {label: Service, key: backend}
+    required_phrases: [backend, import, two levels]
+    requires_coverage_line: true
+  rubrics: [faithfulness, relevancy, answer_correctness]
+  reference_answer: >-
+    The backend host is impacted through TypeScript import and backend registration
+    edges. The SDP impact graph is only two levels deep.

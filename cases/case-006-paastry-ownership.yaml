@@ -1,0 +1,43 @@
+title: Deployed skill resolves ownership inside the paastry domain
+why: >-
+  Paastry is a supported Knowledge Server domain, not merely a fallback searched
+  during SDP refusals. The skill must ground a positive ownership answer in its
+  own domain and not blend portal entities into the result.
+query: who owns crumb-gateway?
+domain: paastry
+persona: platform-engineer
+
+expect_tool_calls:
+  required:
+    - tool: kb_search
+      args:
+        domain: paastry
+        query_contains: crumb-gateway
+        limit_at_least: 20
+    - tool: kb_related
+      args:
+        domain: paastry
+        label: Service
+        key: crumb-gateway
+        relationships_contains: [OWNS]
+        direction: both
+        depth_at_least: 2
+  forbidden_tools: [Bash, Read, Write, Edit, Grep, Glob, WebFetch, WebSearch]
+  max_calls: 10
+
+expect:
+  required_entities:
+    - Service/crumb-gateway
+    - Team/dough-platform
+
+answer_evaluation:
+  expect:
+    status: answered
+    required_citations:
+      - {label: Service, key: crumb-gateway}
+      - {label: Team, key: dough-platform}
+    required_phrases: [crumb-gateway, dough-platform]
+    requires_coverage_line: true
+  rubrics: [faithfulness, relevancy, answer_correctness]
+  reference_answer: >-
+    The crumb-gateway service in the paastry domain is owned by Team dough-platform.

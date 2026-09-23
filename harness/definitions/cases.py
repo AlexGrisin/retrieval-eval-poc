@@ -1,9 +1,4 @@
-"""Define, load, and validate dataset-driven evaluation cases.
-
-Cases remain dictionaries so the runner does not gain a second object model, but
-every dictionary is validated once at the boundary. Typos and incomplete relevance
-definitions therefore fail before the target under test is invoked.
-"""
+"""Load and validate deployed-skill evaluation cases."""
 
 from __future__ import annotations
 
@@ -17,20 +12,9 @@ from pydantic import ValidationError
 from harness.agent.models import AnswerEvaluationSpec
 
 REQUIRED_KEYS = {"title", "why", "query", "domain", "persona"}
-ALLOWED_KEYS = REQUIRED_KEYS | {
-    "limit",
-    "expect",
-    "expect_tool_call",
-    "probe_invalid_request",
-    "answer_evaluation",
-}
+ALLOWED_KEYS = REQUIRED_KEYS | {"expect", "expect_tool_calls", "answer_evaluation"}
+ALLOWED_EXPECT_KEYS = {"required_entities", "must_not_return"}
 CASE_ID_PATTERN = re.compile(r"case-([0-9]{3})-[a-z0-9]+(?:-[a-z0-9]+)*")
-ALLOWED_EXPECT_KEYS = {
-    "relevant",
-    "must_not_return",
-    "expected_first_result",
-}
-# Entity identity: "Label/key", per skill.contracts.Entity.identity.
 ENTITY_IDENTITY_PATTERN = re.compile(r"[A-Za-z]+/\S+")
 
 
@@ -57,13 +41,61 @@ def _entity_identity(value: Any, where: str) -> str:
     return value
 
 
+def _validate_entities(value: Any, where: str, *, required: bool) -> None:
+    if not isinstance(value, list) or (required and not value):
+        qualifier = "a non-empty" if required else "a"
+        raise CaseSpecError(f"{where} must be {qualifier} list")
+    for index, entity in enumerate(value):
+        _entity_identity(entity, f"{where}[{index}]")
+    if len(value) != len(set(value)):
+        raise CaseSpecError(f"{where} must contain unique identities")
+
+
+def _validate_tool_calls(value: Any, source: str) -> None:
+    tool_calls = _mapping(value, f"{source}.expect_tool_calls")
+    unknown = tool_calls.keys() - {"required", "forbidden_tools", "max_calls"}
+    if unknown:
+        raise CaseSpecError(
+            f"{source}.expect_tool_calls has unknown key(s): {sorted(unknown)}"
+        )
+
+    required_calls = tool_calls.get("required")
+    if not isinstance(required_calls, list) or not required_calls:
+        raise CaseSpecError(
+            f"{source}.expect_tool_calls.required must be a non-empty list"
+        )
+    for index, required_call in enumerate(required_calls):
+        where = f"{source}.expect_tool_calls.required[{index}]"
+        required_call = _mapping(required_call, where)
+        if set(required_call) != {"tool", "args"}:
+            raise CaseSpecError(f"{where} must contain exactly 'tool' and 'args'")
+        _string(required_call["tool"], f"{where}.tool")
+        _mapping(required_call["args"], f"{where}.args")
+
+    forbidden_tools = tool_calls.get("forbidden_tools", [])
+    if not isinstance(forbidden_tools, list) or not all(
+        isinstance(tool, str) and tool.strip() for tool in forbidden_tools
+    ):
+        raise CaseSpecError(
+            f"{source}.expect_tool_calls.forbidden_tools must be a list of tool names"
+        )
+
+    max_calls = tool_calls.get("max_calls")
+    if max_calls is not None and (
+        not isinstance(max_calls, int) or isinstance(max_calls, bool) or max_calls < 1
+    ):
+        raise CaseSpecError(
+            f"{source}.expect_tool_calls.max_calls must be a positive integer"
+        )
+
+
 def validate_case(
     case: Any,
     source: str = "<case>",
     *,
     case_id: str | None = None,
 ) -> dict:
-    """Validate authored case fields and optionally attach a filename-derived ID."""
+    """Validate one authored deployed-skill case."""
     case = _mapping(case, source)
     missing = REQUIRED_KEYS - case.keys()
     if missing:
@@ -76,16 +108,11 @@ def validate_case(
         case_id = _string(case_id, f"{source} filename")
         if not CASE_ID_PATTERN.fullmatch(case_id):
             raise CaseSpecError(
-                f"{source} filename must look like "
-                f"case-001-retries-ranking.yaml; got {case_id!r}"
+                f"{source} filename must look like case-001-ownership.yaml; "
+                f"got {case_id!r}"
             )
-    for key in ("title", "why", "query", "domain", "persona"):
+    for key in REQUIRED_KEYS:
         _string(case[key], f"{source}.{key}")
-
-    if "limit" in case and (not isinstance(case["limit"], int) or case["limit"] <= 0):
-        raise CaseSpecError(f"{source}.limit must be a positive integer")
-    if "probe_invalid_request" in case:
-        _mapping(case["probe_invalid_request"], f"{source}.probe_invalid_request")
 
     expect = _mapping(case.get("expect", {}), f"{source}.expect")
     unknown_expect = expect.keys() - ALLOWED_EXPECT_KEYS
@@ -93,60 +120,35 @@ def validate_case(
         raise CaseSpecError(
             f"{source}.expect has unknown key(s): {sorted(unknown_expect)}"
         )
-
-    relevant = expect.get("relevant")
-    if relevant is not None:
-        if not isinstance(relevant, list) or not relevant:
-            raise CaseSpecError(f"{source}.expect.relevant must be a non-empty list")
-        seen_entities: set[str] = set()
-        for index, relevance_label in enumerate(relevant):
-            where = f"{source}.expect.relevant[{index}]"
-            relevance_label = _mapping(relevance_label, where)
-            missing_label = {"entity", "grade"} - relevance_label.keys()
-            if missing_label:
-                raise CaseSpecError(
-                    f"{where} is missing required key(s): {sorted(missing_label)}"
-                )
-            entity = _entity_identity(relevance_label["entity"], f"{where}.entity")
-            if entity in seen_entities:
-                raise CaseSpecError(f"{source} grades entity {entity!r} more than once")
-            seen_entities.add(entity)
-            if relevance_label["grade"] not in {0, 1, 2}:
-                raise CaseSpecError(f"{where}.grade must be 0, 1, or 2")
-
-    if "must_not_return" in expect:
-        forbidden = expect["must_not_return"]
-        if not isinstance(forbidden, list) or not all(isinstance(n, str) for n in forbidden):
-            raise CaseSpecError(
-                f"{source}.expect.must_not_return must be a list of entity identities"
-            )
-        for index, entity in enumerate(forbidden):
-            _entity_identity(entity, f"{source}.expect.must_not_return[{index}]")
-    if "expected_first_result" in expect:
-        _entity_identity(
-            expect["expected_first_result"],
-            f"{source}.expect.expected_first_result",
+    if "required_entities" in expect:
+        _validate_entities(
+            expect["required_entities"],
+            f"{source}.expect.required_entities",
+            required=True,
         )
-    if "expect_tool_call" in case:
-        tool_call = _mapping(case["expect_tool_call"], f"{source}.expect_tool_call")
-        _string(tool_call.get("tool"), f"{source}.expect_tool_call.tool")
-        _mapping(tool_call.get("args"), f"{source}.expect_tool_call.args")
+    if "must_not_return" in expect:
+        _validate_entities(
+            expect["must_not_return"],
+            f"{source}.expect.must_not_return",
+            required=False,
+        )
 
-    if "answer_evaluation" in case:
-        try:
-            AnswerEvaluationSpec.model_validate(case["answer_evaluation"], strict=True)
-        except ValidationError as exc:
-            raise CaseSpecError(f"{source}.answer_evaluation is invalid: {exc}") from exc
+    if "expect_tool_calls" not in case:
+        raise CaseSpecError(f"{source} must declare expect_tool_calls")
+    _validate_tool_calls(case["expect_tool_calls"], source)
+
+    if "answer_evaluation" not in case:
+        raise CaseSpecError(f"{source} must declare answer_evaluation")
+    try:
+        AnswerEvaluationSpec.model_validate(case["answer_evaluation"], strict=True)
+    except ValidationError as exc:
+        raise CaseSpecError(f"{source}.answer_evaluation is invalid: {exc}") from exc
 
     return {"id": case_id, **case} if case_id is not None else case
 
 
-def get_answer_evaluation(case: dict) -> AnswerEvaluationSpec | None:
-    """Return the optional answer-evaluation contract of a validated case."""
-    value = case.get("answer_evaluation")
-    if value is None:
-        return None
-    return AnswerEvaluationSpec.model_validate(value, strict=True)
+def get_answer_evaluation(case: dict) -> AnswerEvaluationSpec:
+    return AnswerEvaluationSpec.model_validate(case["answer_evaluation"], strict=True)
 
 
 def load_case(path: Path) -> dict:
@@ -163,12 +165,12 @@ def load_cases(directory: Path) -> list[dict]:
         for path in sorted(directory.glob("*.yaml"))
         if not path.name.startswith("_")
     ]
-    ids = [case["id"] for case in cases]
-    numbers = sorted(
-        int(match.group(1))
-        for case_id in ids
-        if (match := CASE_ID_PATTERN.fullmatch(case_id))
-    )
+    if not cases:
+        raise CaseSpecError(f"{directory} contains no evaluation cases")
+    numbers = [
+        int(CASE_ID_PATTERN.fullmatch(case["id"]).group(1))
+        for case in cases
+    ]
     expected = list(range(1, len(numbers) + 1))
     if numbers != expected:
         raise CaseSpecError(

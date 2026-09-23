@@ -64,3 +64,22 @@ def check_expected_answer_status(
     if response.status == expected:
         return None
     return f"unexpected answer status: expected {expected}, got {response.status}"
+
+
+def check_required_phrases(
+    response: AgentResponse, required: Iterable[str]
+) -> str | None:
+    answer = response.answer.casefold()
+    missing = sorted(phrase for phrase in required if phrase.casefold() not in answer)
+    if missing:
+        return f"answer is missing required phrase(s): {missing}"
+    return None
+
+
+def check_coverage_line(response: AgentResponse) -> str | None:
+    if any(
+        line.strip().casefold().startswith("coverage:")
+        for line in response.answer.splitlines()
+    ):
+        return None
+    return "answer is missing the required 'Coverage:' line"
