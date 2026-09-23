@@ -35,11 +35,14 @@ ENTITY_REFERENCE = re.compile(
     rf"\b({'|'.join(ENTITY_LABELS)})/([^\s,;\]\)]+)"
 )
 INSUFFICIENT_CONTEXT = re.compile(
-    r"\b(?:not recorded|insufficient context|no relevant (?:knowledge|information))\b",
+    r"\b(?:not recorded|insufficient context|no relevant (?:knowledge|information)"
+    r"|no (?:[\w-]+\s+){0,6}(?:is|are) recorded)\b",
     re.IGNORECASE,
 )
 EXPLICIT_REFUSAL = re.compile(
     r"(?:^[\s#>*_-]*(?:not recorded|insufficient context)\b"
+    r"|^[\s#>*_-]*no (?:on[- ]?call\s+)?(?:rotation|schedule|escalation)"
+    r"[^\n]{0,80}\b(?:is|are) recorded\b"
     r"|^[^\n]{0,100}\b(?:sdp|portal)\b[^\n]{0,80}:\**\s*not recorded\b)",
     re.IGNORECASE | re.MULTILINE,
 )
@@ -247,6 +250,12 @@ class ClaudeCodeSkillTarget:
             "--mcp-config",
             str(self.config.mcp_config),
             "--strict-mcp-config",
+            # The evaluation must not inherit user- or local-machine hooks. They
+            # can inject unrelated instructions into the final answer and make a
+            # deployed-skill case depend on a developer's workstation setup. The
+            # selected plugin and MCP config are still explicitly provided above.
+            "--setting-sources",
+            "project",
             "--allowedTools",
             allowed,
             "--disallowedTools",
@@ -318,11 +327,27 @@ def entities_from_execution(execution: CapturedExecution) -> list[str]:
             identity = f"{entity['label']}/{entity['key']}"
             if identity not in identities:
                 identities.append(identity)
+        # `kb_related` returns the neighbouring entities, not a duplicate of its
+        # starting node. A non-empty relationship result nevertheless proves that
+        # the requested root exists and participated in the graph traversal. Do
+        # not treat arbitrary call arguments or an empty result as retrieved.
+        related = call.result.get("result") if isinstance(call.result, dict) else None
+        if (
+            call.tool == "kb_related"
+            and not call.is_error
+            and isinstance(related, list)
+            and related
+            and isinstance(call.args.get("label"), str)
+            and isinstance(call.args.get("key"), str)
+        ):
+            root = f"{call.args['label']}/{call.args['key']}"
+            if root not in identities:
+                identities.append(root)
     return identities
 
 
 def response_from_answer(answer: str) -> AgentResponse | dict[str, Any]:
-    """Parse the deployed skill's stable Coverage/Sources footer."""
+    """Extract citations for evaluation; strict footer shape is checked separately."""
     if not answer.strip():
         # Preserve this as a contract failure in the normal answer pipeline rather
         # than raising here and hiding the command's exit/stderr evidence.
@@ -330,7 +355,8 @@ def response_from_answer(answer: str) -> AgentResponse | dict[str, Any]:
     source_lines: list[str] = []
     in_sources = False
     for line in answer.splitlines():
-        if line.strip().casefold() == "sources:":
+        normalized = line.strip().strip("*").strip().casefold()
+        if normalized == "sources:":
             in_sources = True
             continue
         if in_sources:

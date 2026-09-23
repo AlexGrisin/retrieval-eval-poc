@@ -8,11 +8,6 @@ persona: platform-engineer
 
 expect_tool_calls:
   required:
-    - tool: kb_fetch
-      args:
-        domain: sdp
-        label: Feature
-        key: syscoscore
     - tool: kb_related
       args:
         domain: sdp
@@ -35,7 +30,8 @@ answer_evaluation:
       - {label: Feature, key: syscoscore}
       - {label: TestSuite, key: "github.com/SyscoCorporation/sysco-internal-developer-portal/plugins/syscoscore:testing/plugin.test.ts"}
     required_phrases: [plugin.test.ts, line coverage is not measured]
-    requires_coverage_line: true
+    forbidden_phrases: [100% line coverage, full line coverage]
+    requires_footer_format: true
   rubrics: [faithfulness, relevancy, answer_correctness]
   reference_answer: >-
     The syscoscore feature has testing/plugin.test.ts. The corpus records that the

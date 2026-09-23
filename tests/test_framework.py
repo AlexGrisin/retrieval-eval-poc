@@ -6,6 +6,7 @@ import json
 
 import pytest
 
+from harness.agent.models import AgentResponse, Citation
 from harness.agent.claude_target import (
     CapturedExecution,
     CapturedToolCall,
@@ -14,6 +15,7 @@ from harness.agent.claude_target import (
     parse_stream_json,
     response_from_answer,
 )
+from harness.validators.answer import check_footer_format, check_forbidden_phrases
 
 pytestmark = pytest.mark.framework
 
@@ -130,6 +132,38 @@ def test_tool_expectations_support_subset_contains_and_minimum() -> None:
     assert check_tool_expectations(case, execution) == []
 
 
+def test_related_root_is_retrieved_only_when_the_graph_returns_a_relationship() -> None:
+    execution = CapturedExecution(
+        tool_calls=[
+            CapturedToolCall(
+                id="1",
+                name="mcp__ks__kb_related",
+                args={"label": "Repository", "key": "example/app"},
+                result={
+                    "result": [
+                        {"entity": {"label": "Service", "key": "app"}}
+                    ]
+                },
+            ),
+            CapturedToolCall(
+                id="2",
+                name="mcp__ks__kb_related",
+                args={"label": "Repository", "key": "missing"},
+                result={"result": []},
+            ),
+        ],
+        final_answer="answer",
+        raw_events=[],
+        exit_code=0,
+        duration_ms=1,
+    )
+
+    assert entities_from_execution(execution) == [
+        "Service/app",
+        "Repository/example/app",
+    ]
+
+
 def test_answer_parser_only_treats_sources_footer_as_citations() -> None:
     answer = (
         "Story/WRONG is mentioned as prose.\n\n"
@@ -147,6 +181,14 @@ def test_answer_parser_only_treats_sources_footer_as_citations() -> None:
         "Service/scoreboard",
     ]
 
+    # Citation extraction is deliberately tolerant so a malformed footer produces
+    # one precise footer-contract failure instead of cascading citation failures.
+    bold_footer = response_from_answer(
+        "Coverage: sdp.\n\n**Sources:**\n"
+        "- Team/dim-platin — catalog:dim-platin"
+    )
+    assert [citation.ref for citation in bold_footer.citations] == ["Team/dim-platin"]
+
 
 def test_answer_parser_recognises_honest_refusal() -> None:
     response = response_from_answer(
@@ -155,6 +197,16 @@ def test_answer_parser_recognises_honest_refusal() -> None:
 
     assert response.status == "insufficient_context"
     assert response.citations == []
+
+    equivalent_refusal = response_from_answer(
+        "No on-call rotation is recorded for the portal.\n\n"
+        "Coverage: sdp and paastry searched.\n\nSources:\n"
+        "- DocChunk/comparison#0 — docs:comparison#0"
+    )
+    assert equivalent_refusal.status == "insufficient_context"
+    assert [citation.ref for citation in equivalent_refusal.citations] == [
+        "DocChunk/comparison#0"
+    ]
 
     cited_comparison = response_from_answer(
         "**Not recorded.** No portal rotation was found.\n\n"
@@ -184,3 +236,92 @@ def test_answer_parser_does_not_confuse_a_coverage_gap_with_refusal() -> None:
 
     assert response.status == "answered"
     assert [citation.ref for citation in response.citations] == ["Team/dim-platin"]
+
+
+def test_footer_format_requires_plain_headers_and_stable_source_bullets() -> None:
+    valid = AgentResponse(
+        status="answered",
+        answer=(
+            "Team dim-platin owns scoreboard.\n\n"
+            "Coverage: sdp.\n\n"
+            "Sources:\n"
+            "- Team/dim-platin — catalog:dim-platin, jira:dim-platin (unverified)"
+        ),
+        citations=[Citation(label="Team", key="dim-platin")],
+    )
+    assert check_footer_format(valid) is None
+
+    bold_headers = valid.model_copy(
+        update={
+            "answer": (
+                "Team dim-platin owns scoreboard.\n\n"
+                "**Coverage:** sdp.\n\n"
+                "**Sources:**\n"
+                "- Team/dim-platin — catalog:dim-platin"
+            )
+        }
+    )
+    assert "unformatted line beginning 'Coverage:'" in check_footer_format(bold_headers)
+
+    malformed_source = valid.model_copy(
+        update={
+            "answer": (
+                "Team dim-platin owns scoreboard.\n\n"
+                "Coverage: sdp.\n\n"
+                "Sources:\n"
+                "- Team/dim-platin — source_system: catalog"
+            )
+        }
+    )
+    assert "source_system:reference" in check_footer_format(malformed_source)
+
+    refusal = AgentResponse(
+        status="insufficient_context",
+        answer="Not recorded.\n\nCoverage: sdp and paastry searched.\n\nSources:",
+        citations=[],
+    )
+    assert check_footer_format(refusal) is None
+
+    relationship_only = valid.model_copy(
+        update={
+            "answer": (
+                "The commit belongs to the repository.\n\n"
+                "Coverage: sdp.\n\n"
+                "Sources:\n"
+                "- Repository/example/app — "
+                "(via IN_REPOSITORY relationship, incoming, distance 2, "
+                "through Team/dim-platin)"
+            ),
+            "citations": [Citation(label="Repository", key="example/app")],
+        }
+    )
+    assert check_footer_format(relationship_only) is None
+
+    trailing_relationship_qualifiers = relationship_only.model_copy(
+        update={
+            "answer": (
+                "The backend is impacted.\n\n"
+                "Coverage: sdp.\n\n"
+                "Sources:\n"
+                "- Service/backend — (via DEPENDS_ON relationship) incoming, "
+                "distance 1 from Feature/scoreboard-backend"
+            ),
+            "citations": [Citation(label="Service", key="backend")],
+        }
+    )
+    assert check_footer_format(trailing_relationship_qualifiers) is None
+
+
+def test_forbidden_phrases_are_checked_case_insensitively() -> None:
+    response = AgentResponse(
+        status="answered",
+        answer=(
+            "The service ROTATES WEEKLY.\n\n"
+            "Coverage: paastry.\n\nSources:"
+        ),
+        citations=[],
+    )
+
+    detail = check_forbidden_phrases(response, ["rotates weekly", "rotates daily"])
+
+    assert detail == "answer contains forbidden phrase(s): ['rotates weekly']"

@@ -27,7 +27,11 @@ ANSWER_CHECKS: dict[str, dict[str, str]] = {
         "status": "traced",
         "source": "case-specific deployed answer content expectation",
     },
-    "answer:coverage_line": {
+    "answer:forbidden_phrases": {
+        "status": "traced",
+        "source": "case-specific deployed answer safety expectation",
+    },
+    "answer:footer_format": {
         "status": "traced",
         "source": "okf-knowledge stable answer format",
     },

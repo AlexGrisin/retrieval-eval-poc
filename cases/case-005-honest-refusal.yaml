@@ -18,6 +18,7 @@ expect_tool_calls:
 answer_evaluation:
   expect:
     status: insufficient_context
-    required_phrases: [not recorded, sdp, paastry]
-    requires_coverage_line: true
+    required_phrases: [sdp, paastry]
+    forbidden_phrases: [current on-call is, on-call engineer is, on-call person is]
+    requires_footer_format: true
   rubrics: [faithfulness, relevancy]

@@ -37,7 +37,7 @@ answer_evaluation:
       - {label: Service, key: crumb-gateway}
       - {label: Team, key: dough-platform}
     required_phrases: [crumb-gateway, dough-platform]
-    requires_coverage_line: true
+    requires_footer_format: true
   rubrics: [faithfulness, relevancy, answer_correctness]
   reference_answer: >-
     The crumb-gateway service in the paastry domain is owned by Team dough-platform.

@@ -10,9 +10,10 @@ from harness.agent.models import (
 )
 from harness.definitions.cases import get_answer_evaluation
 from harness.validators.answer import (
-    check_coverage_line,
     check_citations_were_retrieved,
     check_expected_answer_status,
+    check_footer_format,
+    check_forbidden_phrases,
     check_must_not_cite,
     check_required_citations,
     check_required_phrases,
@@ -38,8 +39,10 @@ def applicable_answer_checks(case: dict) -> tuple[str, ...]:
         names.append("answer:must_not_cite")
     if evaluation.expect.required_phrases:
         names.append("answer:required_phrases")
-    if evaluation.expect.requires_coverage_line:
-        names.append("answer:coverage_line")
+    if evaluation.expect.forbidden_phrases:
+        names.append("answer:forbidden_phrases")
+    if evaluation.expect.requires_footer_format:
+        names.append("answer:footer_format")
     return tuple(names)
 
 
@@ -122,8 +125,13 @@ def evaluate_agent_response(
                 "answer:required_phrases",
                 check_required_phrases(parsed, evaluation.expect.required_phrases),
             )
-        if evaluation.expect.requires_coverage_line:
-            record("answer:coverage_line", check_coverage_line(parsed))
+        if evaluation.expect.forbidden_phrases:
+            record(
+                "answer:forbidden_phrases",
+                check_forbidden_phrases(parsed, evaluation.expect.forbidden_phrases),
+            )
+        if evaluation.expect.requires_footer_format:
+            record("answer:footer_format", check_footer_format(parsed))
 
     answer_passed = all(check.status != "fail" for check in checks)
     retrieval_passed = bool(retrieval_result.get("passed"))

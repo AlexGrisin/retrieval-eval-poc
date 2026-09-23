@@ -1,8 +1,8 @@
-title: Deployed skill resolves ownership with a typo and reports the contradiction
+title: Deployed skill resolves canonical scoreboard ownership
 why: >-
-  This is the app's primary ownership journey. It must exercise the packaged skill,
-  fuzzy search, graph traversal, contradiction disclosure, trust, and citations.
-query: who owns scorebord?
+  The normal, correctly spelled ownership query must work independently of the typo
+  robustness case, using the same graph and contradiction evidence.
+query: who owns scoreboard?
 domain: sdp
 persona: platform-engineer
 
@@ -11,7 +11,7 @@ expect_tool_calls:
     - tool: kb_search
       args:
         domain: sdp
-        query_contains: scorebord
+        query_contains: scoreboard
         limit_at_least: 20
     - tool: kb_related
       args:

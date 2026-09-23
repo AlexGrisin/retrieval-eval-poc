@@ -35,7 +35,7 @@ answer_evaluation:
       - {label: Story, key: DE-1141}
       - {label: PullRequest, key: "github.com/SyscoCorporation/sysco-internal-developer-portal/packages/app#391"}
     required_phrases: [lazy, DE-1141, Jira, connected]
-    requires_coverage_line: true
+    requires_footer_format: true
   rubrics: [faithfulness, relevancy, answer_correctness]
   reference_answer: >-
     DE-1141 and pull request 391 introduced React.lazy code splitting for custom

@@ -18,18 +18,22 @@ captured tool trace + final answer -> deterministic checks -> optional LLM judge
 
 ## What is tested
 
-Seven deployed scenarios cover SDP ownership, dependency impact, change rationale,
-test coverage, honest refusal, plus Paastry ownership and on-call facts. Each case can assert:
+Eight deployed scenarios cover canonical and typo-tolerant SDP ownership, dependency
+impact, change rationale, test coverage, honest refusal, plus Paastry ownership and
+on-call facts. Each case can assert:
 
 - exact or partial MCP tool arguments;
 - required and forbidden tools;
 - a maximum retrieval-call budget;
 - required or forbidden retrieved entities;
-- answer status, citations, required facts, and the stable `Coverage:` line;
+- answer status, citations, required and forbidden phrases, and the stable
+  `Coverage:`/`Sources:` footer format;
 - optional semantic rubrics through the configured LLM Gateway.
 
 The target denies filesystem, shell, and web tools. Retrieval and the final answer are
-captured from the same Claude execution.
+captured from the same Claude execution. It loads only project-level Claude settings,
+not user or local hooks, so workstation customizations cannot alter an evaluation
+answer.
 
 ## Prerequisites
 
@@ -59,7 +63,7 @@ From this repository:
 env -u ANTHROPIC_API_KEY .venv/bin/pytest -q
 ```
 
-That selects five offline framework self-tests and seven live deployed-skill cases.
+That selects seven offline framework self-tests and eight live deployed-skill cases.
 The environment prefix is only needed when a stale `ANTHROPIC_API_KEY` would override
 an authenticated Claude login.
 

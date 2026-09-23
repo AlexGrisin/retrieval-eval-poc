@@ -67,7 +67,8 @@ class AnswerExpectations(BaseModel):
     required_citations: list[Citation] = Field(default_factory=list)
     must_not_cite: list[Citation] = Field(default_factory=list)
     required_phrases: list[str] = Field(default_factory=list)
-    requires_coverage_line: bool = False
+    forbidden_phrases: list[str] = Field(default_factory=list)
+    requires_footer_format: bool = False
 
     @field_validator("required_citations", "must_not_cite")
     @classmethod
@@ -90,14 +91,26 @@ class AnswerExpectations(BaseModel):
             )
         return self
 
-    @field_validator("required_phrases")
+    @field_validator("required_phrases", "forbidden_phrases")
     @classmethod
-    def required_phrases_are_unique_and_nonblank(cls, value: list[str]) -> list[str]:
+    def phrases_are_unique_and_nonblank(cls, value: list[str]) -> list[str]:
         if any(not phrase.strip() for phrase in value):
-            raise ValueError("required phrases must not be blank")
-        if len(value) != len(set(value)):
-            raise ValueError("required phrases must be unique")
+            raise ValueError("phrases must not be blank")
+        folded = [phrase.casefold() for phrase in value]
+        if len(folded) != len(set(folded)):
+            raise ValueError("phrases must be unique ignoring case")
         return value
+
+    @model_validator(mode="after")
+    def phrase_expectations_do_not_conflict(self) -> "AnswerExpectations":
+        required = {phrase.casefold() for phrase in self.required_phrases}
+        forbidden = {phrase.casefold() for phrase in self.forbidden_phrases}
+        overlap = sorted(required & forbidden)
+        if overlap:
+            raise ValueError(
+                f"phrases cannot be both required and forbidden: {overlap}"
+            )
+        return self
 
 
 class AnswerEvaluationSpec(BaseModel):

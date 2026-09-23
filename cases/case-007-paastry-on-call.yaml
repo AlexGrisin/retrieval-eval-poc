@@ -32,5 +32,6 @@ answer_evaluation:
     required_citations:
       - {label: DocChunk, key: runbook-crumb-gateway#0}
     required_phrases: [standard escalation policy, unverified]
-    requires_coverage_line: true
+    forbidden_phrases: [rotates daily, rotates weekly, PagerDuty schedule is]
+    requires_footer_format: true
   rubrics: [faithfulness, relevancy]

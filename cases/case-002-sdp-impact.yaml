@@ -17,7 +17,9 @@ expect_tool_calls:
         direction: incoming
         depth_at_least: 4
   forbidden_tools: [Bash, Read, Write, Edit, Grep, Glob, WebFetch, WebSearch]
-  max_calls: 6
+  # The skill may search both domains and fetch the two notes that explain the
+  # import/registration coupling after the required incoming graph traversal.
+  max_calls: 10
 
 expect:
   required_entities:
@@ -29,7 +31,7 @@ answer_evaluation:
     required_citations:
       - {label: Service, key: backend}
     required_phrases: [backend, import, two levels]
-    requires_coverage_line: true
+    requires_footer_format: true
   rubrics: [faithfulness, relevancy, answer_correctness]
   reference_answer: >-
     The backend host is impacted through TypeScript import and backend registration
