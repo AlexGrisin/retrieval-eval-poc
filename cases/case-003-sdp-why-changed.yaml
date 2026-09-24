@@ -34,9 +34,13 @@ answer_evaluation:
     required_citations:
       - {label: Story, key: DE-1141}
       - {label: PullRequest, key: "github.com/SyscoCorporation/sysco-internal-developer-portal/packages/app#391"}
-    required_phrases: [lazy, DE-1141, Jira, connected]
+    required_phrases: [context caching, homepage data, DE-1141, Jira, not connected]
+    forbidden_phrases: [React.lazy, code splitting, custom plugin routes]
     requires_footer_format: true
   rubrics: [faithfulness, relevancy, answer_correctness]
   reference_answer: >-
-    DE-1141 and pull request 391 introduced React.lazy code splitting for custom
-    plugin routes, followed by lazy-initialization and error-handling fixes.
+    Commit de715cc45970 was merged through pull request 391, which carries DE-1141.
+    The recorded rationale recovered from commit messages is app-level React context
+    caching for homepage data, including consolidating staleness listeners and
+    memoizing the context value. Jira is not connected, and pull-request membership
+    was recovered through the Jira key rather than directly from git.
