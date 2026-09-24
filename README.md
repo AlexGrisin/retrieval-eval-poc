@@ -115,21 +115,35 @@ env -u ANTHROPIC_API_KEY .venv/bin/pytest -m agent_target --trials 3
 
 ## Optional semantic judges
 
-Deterministic checks are always the release gate. To additionally score captured
-answers with the rubric files under `rubrics/`, configure `.env` from `.env.example`
-and run:
+Deterministic checks remain the default release gate. To additionally score every
+usable captured answer with the rubric files under `rubrics/`, configure `.env` from
+`.env.example` and run:
 
 ```bash
 env -u ANTHROPIC_API_KEY .venv/bin/pytest --judge -s
 ```
 
 Judge calls reuse the already captured execution; they do not rerun retrieval.
+Scores, thresholds, explanations, model versions, and hashes are reported, but a score
+below its threshold does not fail the default `--judge` run. A deterministic failure
+may still receive a diagnostic score when its answer and context are usable.
+
+To experiment with semantic gating after the rubrics and references have been reviewed
+and calibrated, opt in explicitly:
+
+```bash
+env -u ANTHROPIC_API_KEY .venv/bin/pytest --judge --judge-gate -s
+```
+
+`--judge-gate` fails an individual judge test when its score is below the authored
+rubric threshold. It never converts a deterministic failure into a pass.
 
 ## Results and reports
 
 Failure output includes the deterministic reason, observed tool names and arguments,
 and the final answer. Every live run also writes `run-results/<run-id>/manifest.json`
-and `case-id/trial-N.json`. The manifest records the case hashes, evaluator and plugin
+and `case-id/trial-N.json`; judged runs also write `case-id/trial-N-judges.json`.
+The manifest records the case hashes, evaluator and plugin
 revisions, plugin content hash, Claude and judge version/settings, and the source-registry hash
 for each tested domain before and after the run. `comparable: false` means the ingested
 data changed during the run and it must not be compared with another result. Its

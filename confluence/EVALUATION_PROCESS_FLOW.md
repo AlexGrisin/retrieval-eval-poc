@@ -46,7 +46,8 @@ flowchart LR
     CAPTURE --> RET --> ANSWER --> GATE
     BOUNDARY --> GATE
     CAPTURE --> METRICS --> REPORT
-    GATE -->|No| REPORT
+    GATE -->|No, evidence unusable| REPORT
+    GATE -->|No, evidence usable| JUDGE
     GATE -->|Yes| JUDGE --> REPORT
 ```
 
@@ -71,7 +72,8 @@ flowchart LR
     PROBE_RESULT["Capture rejection or unexpected acceptance"]
     PROBE_VALIDATOR["Boundary rejection validator"]
     VALID{"Deterministic<br/>checks passed?"}
-    SKIP["Do not run routine LLM judge<br/>Report deterministic failures"]
+    USABLE{"Answer and context<br/>usable for diagnosis?"}
+    SKIP["Do not run LLM judge<br/>Report why evidence is unusable"]
     JUDGE["LLM-as-a-judge<br/><br/>Run exactly the rubrics selected by the case"]
     REPORT["Report separately<br/><br/>• deterministic outcomes<br/>• ranking metrics<br/>• applicable judge scores"]
 
@@ -88,7 +90,9 @@ flowchart LR
     CAPTURE --> RET --> ANSWER --> VALID
     PROBE_VALIDATOR --> VALID
     CAPTURE --> METRICS --> REPORT
-    VALID -->|No| SKIP --> REPORT
+    VALID -->|No| USABLE
+    USABLE -->|No| SKIP --> REPORT
+    USABLE -->|Yes| JUDGE
     VALID -->|Yes| JUDGE --> REPORT
 ```
 
@@ -134,8 +138,9 @@ from agent behaviour.
 ### Semantic answer quality
 
 Semantic answer evaluation addresses quality questions that cannot be determined
-reliably through exact comparison. It runs only after deterministic retrieval and
-answer requirements pass.
+reliably through exact comparison. It runs for a captured answer when both the answer
+and retrieval context are usable, including as a diagnostic when deterministic checks
+failed. The score record preserves the deterministic status.
 
 ```mermaid
 flowchart LR
@@ -149,7 +154,8 @@ flowchart LR
 
     DEFINITION --> GATE
     EVIDENCE --> GATE
-    GATE -->|No| NOT_RUN --> REPORT
+    GATE -->|No, unusable evidence| NOT_RUN --> REPORT
+    GATE -->|No, usable evidence| JUDGE
     GATE -->|Yes| JUDGE --> RESULT --> REPORT
 ```
 
@@ -168,8 +174,9 @@ The judge model, model version, prompt, rubric, result schema, and sampling
 configuration are fixed and recorded; the current implementation uses temperature
 `0` and includes it in the judgment's cache identity.
 
-Semantic results cannot override deterministic failures. They remain reporting-only
-until score thresholds and a release-gating policy are approved.
+Semantic results cannot override deterministic failures. They are reporting-only by
+default. The implementation provides an explicit experimental `--judge-gate` that
+applies authored rubric thresholds; it is not an approved production release policy.
 
 Ranking metrics are reported independently and do not determine whether routine
 judging runs.
@@ -235,8 +242,8 @@ remain **TBD**.
   overridden by a metric or AI-judge score.
 - Ranking metrics remain reporting and baseline-comparison results until thresholds
   and release gates are approved.
-- LLM-judge results remain reporting-only until thresholds and a gating policy are
-  approved.
+- LLM-judge results are reporting-only by default. The explicit `--judge-gate` mode is
+  experimental until thresholds, calibration, and a release policy are approved.
 - Baseline comparisons are valid only across compatible evaluation versions and
   levels. Added, removed, renamed, or newly applicable cases and metrics require a new
   reviewed baseline; comparisons never silently use only their intersection.
@@ -257,7 +264,8 @@ Production detection, triage ownership, and case-approval integration are **TBD*
 The current POC runs the deployed `/okf-knowledge` skill in a fresh Claude Code
 process against the running Knowledge Server and its ingested PostgreSQL data. It
 captures the real MCP tool trace and final answer from that execution. The optional
-judge uses the configured enterprise-compatible gateway; it remains reporting-only.
+judge uses the configured enterprise-compatible gateway; it is reporting-only by
+default, with an explicit experimental threshold gate.
 
 This proves the live read-path evaluation mechanism, tool-policy and answer checks,
 run evidence, and optional judge routing. It does not establish production release

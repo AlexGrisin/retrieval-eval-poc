@@ -144,8 +144,8 @@ real baseline remains Task 7.
 `rubrics/faithfulness.yaml`, `rubrics/relevancy.yaml`, and
 `rubrics/answer_correctness.yaml` are unratified drafts. The loader, structural
 definition checks, prompt builder, strict result schema, Gateway adapter, version
-recording, cache, and reporting-only runner exist. No live model is called during a
-normal pytest run.
+recording, cache, diagnostic reporting, and an explicit experimental threshold gate
+exist. No live model is called during a normal pytest run.
 
 The three criteria concern generated answers, not retrieval rankings:
 
@@ -156,22 +156,24 @@ The three criteria concern generated answers, not retrieval rankings:
 The runner records the configured model and version, actual returned model, prompt and
 rubric hashes, evaluation-input hash, fixed temperature, Gateway response ID, and
 token usage. Temperature participates in the cache identity. Identical judgments are
-cached and scores remain reporting-only.
+cached. Scores are reporting-only under `--judge`; `--judge --judge-gate` explicitly
+fails an individual judge test below its authored threshold.
 
-The captured-agent path evaluates deterministic prerequisites first. Routine judge
-calls receive the exact context and final response from the captured execution and are
-recorded as `not_run` if retrieval or answer validation failed. It never reruns
-retrieval. A diagnostic override can judge a structurally usable failed run.
+The captured-agent path evaluates deterministic checks first. Judge calls receive the
+exact context and final response from the captured execution and still score a
+deterministically failed run when that evidence is structurally usable. They are
+recorded as `not_run` only when the answer contract is invalid or captured context is
+empty. Judging never reruns retrieval.
 
 ### LLM judge process
 
 The captured-agent judge path implements this process:
 
-1. Accept one case, captured final response, and retrieval trace. The POC loads
-   the response from `fixtures/agent_responses/`; real integration will supply it from
-   the agent execution.
+1. Accept one case/trial, final response, and retrieval trace captured from the live
+   deployed-skill execution.
 2. Validate the structured response, status, and exact citations deterministically.
-3. Skip routine LLM calls when retrieval or answer prerequisites failed.
+3. Run diagnostic judging when answer and context are usable, preserving the
+   deterministic and retrieval verdicts; otherwise record `not_run` with a reason.
 4. Build a judge input containing the question, captured retrieval context, generated
    answer, applicable rubric, and optional reference answer.
 5. Apply rubric eligibility: relevancy applies to every valid response, faithfulness
@@ -179,8 +181,10 @@ The captured-agent judge path implements this process:
 6. Require a structured result containing the criterion, score, and explanation.
 7. Record the judge model ID, prompt hash, rubric version, and input hash; reuse a
    cached result when those inputs and versions are unchanged.
-8. Report judge scores separately from retrieval metrics and deterministic validators.
-   Judge scores do not change the deterministic test verdict.
+8. Report judge scores, thresholds, explanations, and versions separately from
+   deterministic validators. Default `--judge` scores do not gate; the explicit
+   `--judge-gate` compares each score with its authored threshold and still cannot
+   override a deterministic failure.
 
 ## Remaining work
 

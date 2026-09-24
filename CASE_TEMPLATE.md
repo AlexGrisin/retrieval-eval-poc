@@ -96,4 +96,5 @@ relationship name.
 An empty `Sources:` section is valid for an honest `insufficient_context` response.
 
 `answer_correctness` requires `reference_answer`. Judge rubrics are used only with
-`--judge`; all other expectations are deterministic.
+`--judge`; all other expectations are deterministic. Judge scores are diagnostic by
+default. `--judge --judge-gate` explicitly fails scores below the rubric threshold.

@@ -34,7 +34,13 @@ def pytest_addoption(parser):
         "--judge",
         action="store_true",
         default=False,
-        help="call the configured live LLM Gateway after deterministic checks",
+        help="score usable captured answers with the configured live LLM Gateway",
+    )
+    parser.addoption(
+        "--judge-gate",
+        action="store_true",
+        default=False,
+        help="fail judge tests whose scores are below authored rubric thresholds",
     )
     parser.addoption("--claude-bin", action="store", default="claude")
     parser.addoption("--agent-model", action="store", default=None)
@@ -76,6 +82,8 @@ def pytest_ignore_collect(collection_path, config):
 @pytest.hookimpl(tryfirst=True)
 def pytest_collection_modifyitems(config, items):
     """Select optional judges, prevent duplicate live runs, and order by case."""
+    if config.getoption("--judge-gate") and not config.getoption("--judge"):
+        raise pytest.UsageError("--judge-gate requires --judge")
     worker_count = getattr(config.option, "numprocesses", None)
     if worker_count and any(
         item.get_closest_marker("agent_target") is not None for item in items
@@ -224,7 +232,10 @@ def run_artifacts(request, agent_target, knowledge_server_ready: str) -> RunArti
             "requested_effort": agent_target.config.effort,
             "timeout_seconds": agent_target.config.timeout_seconds,
         },
-        "judge": {"enabled": request.config.getoption("--judge")},
+        "judge": {
+            "enabled": request.config.getoption("--judge"),
+            "gate_enabled": request.config.getoption("--judge-gate"),
+        },
         "server_before": server_before,
         "attempts": [],
     }

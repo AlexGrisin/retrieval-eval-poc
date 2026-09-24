@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from harness.agent.models import AgentResponse, Citation
+from harness.agent.models import AgentCheckResult, AgentResponse, AgentRun, Citation
 from harness.agent.claude_target import (
     CapturedExecution,
     CapturedToolCall,
@@ -18,6 +18,10 @@ from harness.agent.claude_target import (
 )
 from harness.validators.answer import check_footer_format, check_forbidden_phrases
 from harness.run_artifacts import RunArtifacts
+from harness.judges.gateway import GatewayResponse
+from harness.judges.models import JudgeConfig
+from harness.judges.prompt import PROMPT_VERSION
+from harness.judges.runner import run_agent_judges, summarize_judge_outcome
 
 pytestmark = pytest.mark.framework
 
@@ -353,6 +357,11 @@ def test_run_artifacts_records_trials_and_marks_changed_corpus_non_comparable(tm
     )
 
     evidence = artifacts.record_outcome("case-001-example", 2, outcome)
+    judge_evidence = artifacts.record_judges(
+        "case-001-example",
+        2,
+        [{"criterion": "faithfulness", "score": 0.5, "above_threshold": False}],
+    )
     artifacts.finish(
         {
             "server_base_url": "http://127.0.0.1:8000",
@@ -368,8 +377,10 @@ def test_run_artifacts_records_trials_and_marks_changed_corpus_non_comparable(tm
             "trial": 2,
             "passed": True,
             "evidence": "case-001-example/trial-2.json",
+            "judge_evidence": "case-001-example/trial-2-judges.json",
         }
     ]
+    assert judge_evidence.name == "trial-2-judges.json"
     assert manifest["comparable"] is False
     assert manifest["trial_summary"] == [
         {
@@ -380,3 +391,66 @@ def test_run_artifacts_records_trials_and_marks_changed_corpus_non_comparable(tm
             "result": "1/3",
         }
     ]
+
+
+def test_diagnostic_judge_scores_a_usable_deterministic_failure() -> None:
+    class Gateway:
+        def evaluate(self, prompt, schema):
+            return GatewayResponse(
+                result={
+                    "criterion": "faithfulness",
+                    "score": 0.5,
+                    "explanation": "One claim is unsupported.",
+                },
+                actual_model="judge-model-2026-01",
+            )
+
+    run = AgentRun(
+        case_id="case-001-example",
+        question="Who owns it?",
+        retrieved_context="The retrieved context names Team/example.",
+        response=AgentResponse(
+            status="answered",
+            answer="Team/example owns it.",
+            citations=[Citation(label="Team", key="example")],
+        ),
+        retrieval_result={"passed": False},
+        checks=[
+            AgentCheckResult(
+                name="answer:footer_format",
+                status="fail",
+                detail="footer malformed",
+                traceability="inferred",
+                source="test",
+            )
+        ],
+        answer_passed=False,
+        deterministic_passed=False,
+        rubrics=["faithfulness"],
+    )
+    config = JudgeConfig(
+        gateway_url="https://gateway.example",
+        model_id="judge-model-2026-01",
+        model_version="2026-01",
+        prompt_version=PROMPT_VERSION,
+    )
+
+    default_outcome = run_agent_judges(
+        run=run, gateway=Gateway(), config=config, cache_dir=None
+    )[0]
+    diagnostic_outcome = run_agent_judges(
+        run=run,
+        gateway=Gateway(),
+        config=config,
+        cache_dir=None,
+        judge_failed_runs=True,
+    )[0]
+    summary = summarize_judge_outcome(
+        diagnostic_outcome, {"threshold": 0.8}
+    )
+
+    assert default_outcome.status == "not_run"
+    assert diagnostic_outcome.status == "scored"
+    assert summary["score"] == 0.5
+    assert summary["above_threshold"] is False
+    assert summary["deterministic_passed"] is False

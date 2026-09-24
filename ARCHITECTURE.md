@@ -48,10 +48,16 @@ regression comparison. `trial_summary` reports each selected case as, for exampl
 - `framework`: offline parser and validator self-tests. These prove that the
   measuring instrument recognizes the evidence shapes it claims to check.
 - `agent_target`: live application cases. These require the real server and Claude.
-- `judge`: optional semantic scoring over the already captured live answer.
+- `judge`: optional semantic scoring over a usable captured live answer. Scores are
+  diagnostic by default; `--judge-gate` explicitly applies authored thresholds.
 
 The default run includes `framework` and `agent_target`; judge tests are deselected
 unless `--judge` is supplied.
+
+A deterministic failure does not suppress semantic diagnostics when the captured
+answer and retrieval context are still usable. The judge record retains both
+`retrieval_passed` and `deterministic_passed`, so a semantic score cannot disguise an
+exact-contract failure.
 
 ## Failure attribution
 

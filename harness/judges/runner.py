@@ -1,7 +1,7 @@
 """Run captured agent answers through rubric-based LLM judging.
 
-Scores are reporting-only: no rubric threshold changes a deterministic test verdict.
-Live calls require explicit Gateway configuration through environment variables.
+The runner returns neutral score records. Pytest reports them by default and applies
+rubric thresholds only when the caller explicitly enables the judge gate.
 """
 
 from __future__ import annotations
@@ -32,11 +32,44 @@ from harness.judges.prompt import (
 )
 
 DEFAULT_CACHE = ROOT / "run-results" / "judge-cache"
-RESULT_SCHEMA_VERSION = 1
+RESULT_SCHEMA_VERSION = 2
 
 
 class JudgeRunError(RuntimeError):
     pass
+
+
+def summarize_judge_outcome(outcome: JudgeOutcome, rubric: dict) -> dict:
+    """Combine a judge response with the authored threshold for reporting/gating."""
+    threshold = float(rubric["threshold"])
+    if outcome.status != "scored" or outcome.record is None:
+        return {
+            "criterion": outcome.criterion,
+            "status": outcome.status,
+            "threshold": threshold,
+            "above_threshold": None,
+            "reason": outcome.reason,
+        }
+    record = outcome.record
+    return {
+        "criterion": outcome.criterion,
+        "status": outcome.status,
+        "score": record.score,
+        "threshold": threshold,
+        "above_threshold": record.score >= threshold,
+        "explanation": record.explanation,
+        "requested_model": record.requested_model,
+        "actual_model": record.actual_model,
+        "model_version": record.model_version,
+        "prompt_version": record.prompt_version,
+        "prompt_hash": record.prompt_hash,
+        "rubric_hash": record.rubric_hash,
+        "input_hash": record.input_hash,
+        "cached": record.cached,
+        "retrieval_passed": record.retrieval_passed,
+        "deterministic_passed": record.deterministic_passed,
+        "usage": record.usage,
+    }
 
 
 def _require_prompt_version(config: JudgeConfig) -> None:
@@ -52,6 +85,7 @@ def _score_input(
     judge_input: JudgeInput,
     rubric: dict,
     retrieval_passed: bool,
+    deterministic_passed: bool,
     gateway: JudgeGateway,
     config: JudgeConfig,
     cache: JudgeCache,
@@ -76,7 +110,12 @@ def _score_input(
 
     cached = cache.load(cache_key)
     if cached is not None:
-        return cached.model_copy(update={"retrieval_passed": retrieval_passed})
+        return cached.model_copy(
+            update={
+                "retrieval_passed": retrieval_passed,
+                "deterministic_passed": deterministic_passed,
+            }
+        )
 
     gateway_response = gateway.evaluate(prompt, score_schema(rubric_name))
     try:
@@ -106,6 +145,7 @@ def _score_input(
         cache_key=cache_key,
         cached=False,
         retrieval_passed=retrieval_passed,
+        deterministic_passed=deterministic_passed,
         gateway_response_id=gateway_response.response_id,
         usage=gateway_response.usage,
     )
@@ -172,6 +212,7 @@ def run_agent_judges(
             judge_input=judge_input,
             rubric=rubrics[rubric_name],
             retrieval_passed=bool(run.retrieval_result.get("passed")),
+            deterministic_passed=run.deterministic_passed,
             gateway=gateway,
             config=config,
             cache=cache,

@@ -61,6 +61,7 @@ class JudgeRecord(BaseModel):
     cache_key: str
     cached: bool
     retrieval_passed: bool
+    deterministic_passed: bool
     gateway_response_id: str | None = None
     usage: dict[str, Any] = Field(default_factory=dict)
 

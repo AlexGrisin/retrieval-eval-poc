@@ -145,6 +145,27 @@ class RunArtifacts:
         self._write_manifest()
         return path
 
+    def record_judges(
+        self, case_id: str, trial: int, judge_results: list[dict[str, Any]]
+    ) -> Path:
+        """Write semantic results separately so deterministic evidence stays immutable."""
+        case_dir = self.directory / case_id
+        case_dir.mkdir(exist_ok=True)
+        path = case_dir / f"trial-{trial}-judges.json"
+        if path.exists():
+            raise RuntimeError(f"refusing to overwrite existing judge evidence: {path}")
+        path.write_text(
+            json.dumps(judge_results, indent=2, ensure_ascii=False, default=str) + "\n"
+        )
+        attempt = next(
+            item
+            for item in self._manifest["attempts"]
+            if item["case_id"] == case_id and item["trial"] == trial
+        )
+        attempt["judge_evidence"] = str(path.relative_to(self.directory))
+        self._write_manifest()
+        return path
+
     def finish(self, snapshot: dict[str, Any]) -> None:
         self._manifest["finished_at"] = _utc_now()
         self._manifest["server_after"] = snapshot
