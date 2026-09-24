@@ -1,5 +1,9 @@
 # CODEMAP
 
+> **Status: historical Rosetta inventory.** The file list below predates the live
+> deployed-skill evaluator; use the repository tree and [../ARCHITECTURE.md](../ARCHITECTURE.md)
+> for the current layout.
+
 **Purpose**: a file-system map of the project, so an agent can find where something
 lives without a full directory scan. **Content**: markdown headers per directory,
 immediate children listed, nested sub-headers for directories 3-4 levels deep;

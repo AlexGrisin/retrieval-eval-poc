@@ -25,8 +25,9 @@ CASES = load_cases()
         for case in CASES
     ],
 )
-def test_deployed_skill(agent_case_results, case_id):
-    outcome = agent_case_results[case_id]
+def test_deployed_skill(agent_case_results, case_id, trial):
+    outcome = agent_case_results[case_id, trial]
+    allure.dynamic.parameter("trial", trial)
     allure.attach(
         json.dumps(
             [call.as_dict() for call in outcome.evidence.tool_calls],

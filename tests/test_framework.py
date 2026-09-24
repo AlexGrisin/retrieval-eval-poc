@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
 
 import pytest
 
@@ -16,6 +17,7 @@ from harness.agent.claude_target import (
     response_from_answer,
 )
 from harness.validators.answer import check_footer_format, check_forbidden_phrases
+from harness.run_artifacts import RunArtifacts
 
 pytestmark = pytest.mark.framework
 
@@ -325,3 +327,56 @@ def test_forbidden_phrases_are_checked_case_insensitively() -> None:
     detail = check_forbidden_phrases(response, ["rotates weekly", "rotates daily"])
 
     assert detail == "answer contains forbidden phrase(s): ['rotates weekly']"
+
+
+def test_run_artifacts_records_trials_and_marks_changed_corpus_non_comparable(tmp_path) -> None:
+    before = {
+        "server_base_url": "http://127.0.0.1:8000",
+        "domains": {"sdp": {"source_registry_sha256": "before"}},
+    }
+    artifacts = RunArtifacts(
+        tmp_path,
+        {
+            "schema_version": 1,
+            "server_before": before,
+            "attempts": [],
+            "trials_per_case": 3,
+        },
+    )
+    outcome = SimpleNamespace(
+        passed=True,
+        failures=[],
+        evidence=SimpleNamespace(
+            model="model", session_id="session", duration_ms=5, exit_code=0,
+            usage={}, stderr="", tool_calls=[], final_answer="answer",
+        ),
+    )
+
+    evidence = artifacts.record_outcome("case-001-example", 2, outcome)
+    artifacts.finish(
+        {
+            "server_base_url": "http://127.0.0.1:8000",
+            "domains": {"sdp": {"source_registry_sha256": "after"}},
+        }
+    )
+
+    manifest = json.loads(artifacts.manifest_path.read_text())
+    assert evidence.name == "trial-2.json"
+    assert manifest["attempts"] == [
+        {
+            "case_id": "case-001-example",
+            "trial": 2,
+            "passed": True,
+            "evidence": "case-001-example/trial-2.json",
+        }
+    ]
+    assert manifest["comparable"] is False
+    assert manifest["trial_summary"] == [
+        {
+            "case_id": "case-001-example",
+            "passed_trials": 1,
+            "attempted_trials": 1,
+            "configured_trials": 3,
+            "result": "1/3",
+        }
+    ]

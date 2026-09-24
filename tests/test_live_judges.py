@@ -15,20 +15,32 @@ CASES = load_cases()
 
 
 @pytest.fixture(scope="session")
-def agent_live_judge_outcomes(agent_case_results):
+def agent_live_judge_outcomes(agent_case_results, run_artifacts):
     config = JudgeConfig.from_env(PROMPT_VERSION)
     gateway = OpenAIResponsesGateway(config)
-    cache: dict[str, list] = {}
+    run_artifacts.set_metadata(
+        "judge",
+        {
+            "enabled": True,
+            "gateway_url": config.gateway_url,
+            "model_id": config.model_id,
+            "model_version": config.model_version,
+            "prompt_version": config.prompt_version,
+            "temperature": config.temperature,
+        },
+    )
+    cache: dict[tuple[str, int], list] = {}
 
-    def outcomes_for(case_id: str):
-        if case_id not in cache:
-            cache[case_id] = run_agent_judges(
-                run=agent_case_results[case_id].agent_run,
+    def outcomes_for(case_id: str, trial: int):
+        key = (case_id, trial)
+        if key not in cache:
+            cache[key] = run_agent_judges(
+                run=agent_case_results[key].agent_run,
                 gateway=gateway,
                 config=config,
                 cache_dir=DEFAULT_CACHE,
             )
-        return cache[case_id]
+        return cache[key]
 
     return outcomes_for
 
@@ -50,8 +62,8 @@ def agent_live_judge_outcomes(agent_case_results):
     ],
 )
 def test_deployed_skill_live_judge(
-    agent_live_judge_outcomes, case_id, rubric_name
+    agent_live_judge_outcomes, case_id, rubric_name, trial
 ):
-    outcomes = agent_live_judge_outcomes(case_id)
+    outcomes = agent_live_judge_outcomes(case_id, trial)
     outcome = next(item for item in outcomes if item.criterion == rubric_name)
     assert outcome.status == "scored"

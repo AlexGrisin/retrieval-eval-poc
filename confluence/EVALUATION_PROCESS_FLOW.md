@@ -11,7 +11,7 @@ Process approval: **TBD**.
 
 ## Purpose
 
-The process executes a defined evaluation case, captures retrieval and answer evidence
+The process executes each defined evaluation case/trial, captures retrieval and answer evidence
 from one agent execution, applies exact validation first, measures retrieval quality,
 and uses an LLM judge only for case-selected semantic criteria. It reports
 deterministic outcomes, ranking metrics, and judge scores separately.
@@ -58,11 +58,11 @@ flowchart LR
     DEFINITIONS["Definition checks<br/><br/>• runtime inputs and expected outcomes<br/>• relevance labels when used<br/>• semantic criteria when used"]
     DEFINITIONS_VALID{"Definitions<br/>valid?"}
     DEFINITION_FAILURE["Stop before target execution<br/>Report definition failures"]
-    CASE["Execute evaluation case<br/><br/>Send the question<br/>and permitted runtime inputs"]
+    CASE["Execute evaluation case/trial<br/><br/>Send the question<br/>and permitted runtime inputs"]
     AGENT["Agent under test<br/><br/>Interpret question<br/>Request context<br/>Produce final answer"]
     SKILL["Retrieval Skill<br/><br/>Translate the context need<br/>into a structured request<br/>Preserve returned provenance"]
     SERVER["Knowledge Server<br/><br/>Validate request and caller<br/>Return ranked notes<br/>or retrieval error"]
-    CAPTURE["Capture one execution<br/><br/>• emitted retrieval request<br/>• retrieval response and context<br/>• final structured answer"]
+    CAPTURE["Capture one execution per case/trial<br/><br/>• emitted retrieval request<br/>• retrieval response and context<br/>• final structured answer"]
     RET["Retrieval validators<br/><br/>• request and boundary contracts<br/>• safety and case expectations<br/>• result provenance"]
     ANSWER["Answer validators<br/><br/>• response contract<br/>• expected status<br/>• citation requirements"]
     METRICS["Ranking metrics<br/><br/>• Recall<br/>• Precision<br/>• MRR<br/>• NDCG"]
@@ -114,7 +114,9 @@ Agent → Retrieval Skill → Knowledge Server
 
 It captures the request emitted by the Retrieval Skill, the Knowledge Server response,
 the context presented to the agent, and the agent's final answer from the same
-execution.
+execution. `--trials N` repeats a selected case in N fresh processes; these are
+independent observations, not retries. Answer checks and optional judges share the
+matching case/trial execution.
 
 Invalid-request cases are executed separately against the Knowledge Server boundary,
 bypassing the agent and Retrieval Skill. This isolates server contract enforcement
@@ -182,7 +184,7 @@ on this process page.
 | --- | --- |
 | Data quality and trust | Provenance, unsafe-result, superseded-knowledge, and citation validation |
 | Retrieval quality and grounding | Recall, Precision, MRR, NDCG, faithfulness, relevancy, and answer correctness |
-| Reproducibility | One captured execution, versioned evidence, repeated runs, and compatible baselines |
+| Reproducibility | One captured execution per case/trial, immutable trial evidence, a versioned manifest, and compatible baselines |
 | Enterprise integration | Protocol boundaries are represented; real enterprise dependencies and services are **TBD** |
 | Security and permission fidelity | Declared scope and unsafe-result validation are represented; authenticated identity and server-derived permissions are **TBD** |
 | Observability and traceability | Per-case evidence and results are represented; production telemetry is **TBD** |
@@ -194,10 +196,10 @@ on this process page.
 | Level | Retrieval-process application | Current position |
 | --- | --- | --- |
 | Framework | Evaluation instrument | Implemented with controlled synthetic assets |
-| Component | Retrieval Skill against a controlled target | Implemented with a fixture-backed target |
-| Contract | Knowledge Server MCP, REST, and CLI boundaries | MCP and REST implemented in memory; CLI **TBD** |
-| Integration | Retrieval Skill, Knowledge Server, identity, storage, and enterprise services | **TBD** |
-| End-to-end | Real agent with the complete retrieval path and captured final answer | **TBD** |
+| Component | Retrieval Skill against the running Knowledge Server | Implemented for the local deployed-skill target |
+| Contract | Knowledge Server MCP, REST, and CLI boundaries | MCP is exercised through the deployed skill; broader contract coverage is **TBD** |
+| Integration | Retrieval Skill, Knowledge Server, identity, storage, and enterprise services | Local skill-to-server integration implemented; enterprise identity and services are **TBD** |
+| End-to-end | Real agent with the complete retrieval path and captured final answer | Implemented locally for `/okf-knowledge`; production release qualification is **TBD** |
 | Production observation | Retrieval regressions, incidents, drift, and operational targets | **TBD** |
 
 Framework tests verify the measuring instrument using controlled synthetic assets.
@@ -217,11 +219,14 @@ For each case, the process reports:
 - explicit outcomes where deterministic prerequisites block judging.
 
 Each report records a versioned run manifest that separates controlled compatibility
-inputs, the target under evaluation, and traceability-only run metadata. Comparisons
-reject changed evaluation data, contracts, measurement code, dependencies,
-configuration, cases, or metrics before calculating deltas. A target version may
-differ only when the exact field is declared as the change under test. Approved
-release thresholds and the first real baseline remain **TBD**.
+inputs, the target under evaluation, and traceability-only run metadata. The deployed
+skill implementation records case hashes, evaluator/plugin/server revisions, model
+settings, and per-domain source-registry hashes before and after a run. A changed
+registry marks the run non-comparable. Comparisons reject changed evaluation data,
+contracts, measurement code, dependencies, configuration, cases, or metrics before
+calculating deltas. A target version may differ only when the exact field is declared
+as the change under test. Approved release thresholds and the first real baseline
+remain **TBD**.
 
 ### Decision and operating rules
 
@@ -249,17 +254,15 @@ Production detection, triage ownership, and case-approval integration are **TBD*
 
 ## Current POC boundary
 
-| Current POC substitution | Intended integration |
-| --- | --- |
-| Fixture-backed retrieval | Real Knowledge Server |
-| Direct Retrieval Skill execution | Real answer-generating agent |
-| Synthetic final answer | Final answer captured from the same real execution |
-| In-memory MCP and REST | Real MCP, REST/API, and CLI contract and integration boundaries |
-| Fake judge Gateway by default | Approved enterprise Gateway integration |
+The current POC runs the deployed `/okf-knowledge` skill in a fresh Claude Code
+process against the running Knowledge Server and its ingested PostgreSQL data. It
+captures the real MCP tool trace and final answer from that execution. The optional
+judge uses the configured enterprise-compatible gateway; it remains reporting-only.
 
-The POC proves that the evaluation mechanism, protocol contracts, validators, ranking
-measurements, deterministic answer checks, and judge routing work together. It does
-not prove production retrieval quality or real-agent answer quality.
+This proves the live read-path evaluation mechanism, tool-policy and answer checks,
+run evidence, and optional judge routing. It does not establish production release
+thresholds, permission fidelity, load behaviour, freshness monitoring, or a reviewed
+semantic-score gating policy.
 
 Production use requires approved contracts, reference labels, decision thresholds,
 judge policy, authenticated permission fidelity, and the integrations declared by the

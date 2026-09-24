@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.error import URLError
 from urllib.parse import urlsplit, urlunsplit
@@ -16,6 +18,13 @@ from harness.agent.claude_target import (
     ClaudeCodeSkillTarget,
     ClaudeTargetConfig,
     evaluate_agent_case,
+)
+from harness.run_artifacts import (
+    RunArtifacts,
+    file_hash,
+    git_metadata,
+    server_snapshot,
+    tree_hash,
 )
 from tests.support import ROOT, load_cases
 
@@ -33,6 +42,28 @@ def pytest_addoption(parser):
     parser.addoption("--agent-timeout", action="store", type=int, default=300)
     parser.addoption("--plugin-dir", action="store", default=None)
     parser.addoption("--mcp-config", action="store", default=None)
+    parser.addoption(
+        "--trials",
+        action="store",
+        type=int,
+        default=1,
+        help="independent Claude executions per live case (default: 1)",
+    )
+    parser.addoption(
+        "--run-results-dir",
+        action="store",
+        default="run-results",
+        help="directory for per-run manifest and captured evidence",
+    )
+
+
+def pytest_generate_tests(metafunc):
+    """Add independent trial numbers without making case modules read pytest config."""
+    if "trial" in metafunc.fixturenames:
+        trials = metafunc.config.getoption("--trials")
+        if trials < 1:
+            raise pytest.UsageError("--trials must be at least 1")
+        metafunc.parametrize("trial", range(1, trials + 1), ids=lambda trial: f"trial-{trial}")
 
 
 def pytest_ignore_collect(collection_path, config):
@@ -151,27 +182,97 @@ def knowledge_server_ready(agent_target: ClaudeCodeSkillTarget) -> str:
             "the real Knowledge Server is not ready; start it before evaluation. "
             f"MCP config: {agent_target.config.mcp_config}. Cause: {exc}"
         ) from exc
-    return mcp_url
+    return urlunsplit((parts.scheme, parts.netloc, "", "", ""))
+
+
+def _domains_under_test() -> list[str]:
+    domains = set()
+    for case in load_cases():
+        domains.update(("sdp", "paastry") if case["domain"] == "both" else (case["domain"],))
+    return sorted(domains)
+
+
+@pytest.fixture(scope="session")
+def run_artifacts(request, agent_target, knowledge_server_ready: str) -> RunArtifacts:
+    """Persist exactly which code, model settings, cases, and server data were used."""
+    workspace = agent_target.config.cwd
+    domains = _domains_under_test()
+    try:
+        server_before = server_snapshot(knowledge_server_ready, domains)
+    except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
+        raise pytest.UsageError(
+            "could not capture the Knowledge Server source registry; "
+            f"do not run comparisons without it. Cause: {exc}"
+        ) from exc
+    manifest = {
+        "schema_version": 1,
+        "started_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+        "trials_per_case": request.config.getoption("--trials"),
+        "cases": {case["id"]: file_hash(ROOT / "cases" / f"{case['id']}.yaml") for case in load_cases()},
+        "evaluator": git_metadata(ROOT),
+        "plugin": {
+            "directory": str(agent_target.config.plugin_dir),
+            "git": git_metadata(agent_target.config.plugin_dir),
+            "tree_sha256": tree_hash(agent_target.config.plugin_dir),
+            "mcp_config_sha256": file_hash(agent_target.config.mcp_config),
+        },
+        "knowledge_server": git_metadata(workspace / "sysco-context-layer-knowledge-server"),
+        "claude": {
+            "binary": agent_target.config.claude_bin,
+            "version": _claude_version(agent_target.config.claude_bin),
+            "requested_model": agent_target.config.model,
+            "requested_effort": agent_target.config.effort,
+            "timeout_seconds": agent_target.config.timeout_seconds,
+        },
+        "judge": {"enabled": request.config.getoption("--judge")},
+        "server_before": server_before,
+        "attempts": [],
+    }
+    artifacts = RunArtifacts(Path(request.config.getoption("--run-results-dir")), manifest)
+
+    def finish() -> None:
+        try:
+            artifacts.finish(server_snapshot(knowledge_server_ready, domains))
+        except Exception as exc:  # Preserve the original test outcome and explain comparability.
+            artifacts.finish_with_server_error(f"{type(exc).__name__}: {exc}")
+
+    request.addfinalizer(finish)
+    return artifacts
+
+
+def _claude_version(binary: str) -> str | None:
+    try:
+        completed = subprocess.run(
+            [binary, "--version"], text=True, capture_output=True, check=False, timeout=10
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return None
+    return completed.stdout.strip() if completed.returncode == 0 else None
 
 
 class _AgentCaseResults:
-    def __init__(self, target: ClaudeCodeSkillTarget) -> None:
+    def __init__(self, target: ClaudeCodeSkillTarget, artifacts: RunArtifacts) -> None:
         self._target = target
         self._cases = {case["id"]: case for case in load_cases()}
-        self._cache: dict[str, AgentCaseOutcome] = {}
+        self._artifacts = artifacts
+        self._cache: dict[tuple[str, int], AgentCaseOutcome] = {}
 
-    def __getitem__(self, case_id: str) -> AgentCaseOutcome:
-        if case_id not in self._cache:
+    def __getitem__(self, key: tuple[str, int]) -> AgentCaseOutcome:
+        case_id, trial = key
+        if key not in self._cache:
             case = self._cases[case_id]
-            self._cache[case_id] = evaluate_agent_case(
+            outcome = evaluate_agent_case(
                 case, self._target.execute(case)
             )
-        return self._cache[case_id]
+            self._artifacts.record_outcome(case_id, trial, outcome)
+            self._cache[key] = outcome
+        return self._cache[key]
 
 
 @pytest.fixture(scope="session")
 def agent_case_results(
     agent_target: ClaudeCodeSkillTarget,
     knowledge_server_ready: str,
+    run_artifacts: RunArtifacts,
 ) -> _AgentCaseResults:
-    return _AgentCaseResults(agent_target)
+    return _AgentCaseResults(agent_target, run_artifacts)

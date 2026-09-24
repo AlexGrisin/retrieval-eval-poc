@@ -1,5 +1,9 @@
 # TECHSTACK
 
+> **Status: historical Rosetta inventory.** The current runtime dependencies and test
+> entry points are authoritative in [../pyproject.toml](../pyproject.toml) and
+> [../README.md](../README.md).
+
 **Purpose**: what the workspace runs on — language, package manager, core frameworks,
 dev/test tooling, and build entry points. **Content**: detected technologies and their
 role, nothing project-specific. **Style**: terse grep-friendly headers, one bullet per

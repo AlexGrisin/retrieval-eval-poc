@@ -89,7 +89,7 @@ List tests without running them:
 ```
 
 Live cases run sequentially and normally take several minutes. Parallel workers are
-rejected for live cases so one case is never executed more than once. Use
+rejected for live cases so one case/trial is never executed more than once. Use
 `--agent-timeout 90` to shorten the default 300-second per-case timeout.
 
 ## Reproducibility options
@@ -103,6 +103,14 @@ env -u ANTHROPIC_API_KEY .venv/bin/pytest \
   --agent-effort high \
   --plugin-dir /path/to/plugins/sdp-context \
   --mcp-config /path/to/plugins/sdp-context/.mcp.json
+```
+
+For an important regression run, repeat every selected case in fresh Claude
+processes. Each attempt is an independent result, not a retry: a `2/3` outcome means
+one trial failed.
+
+```bash
+env -u ANTHROPIC_API_KEY .venv/bin/pytest -m agent_target --trials 3
 ```
 
 ## Optional semantic judges
@@ -120,7 +128,14 @@ Judge calls reuse the already captured execution; they do not rerun retrieval.
 ## Results and reports
 
 Failure output includes the deterministic reason, observed tool names and arguments,
-and the final answer. Full tool results are attached to Allure:
+and the final answer. Every live run also writes `run-results/<run-id>/manifest.json`
+and `case-id/trial-N.json`. The manifest records the case hashes, evaluator and plugin
+revisions, plugin content hash, Claude and judge version/settings, and the source-registry hash
+for each tested domain before and after the run. `comparable: false` means the ingested
+data changed during the run and it must not be compared with another result. Its
+`trial_summary` gives each selected case a result such as `2/3`.
+
+Full tool results are also attached to Allure:
 
 ```bash
 env -u ANTHROPIC_API_KEY .venv/bin/pytest --alluredir=allure-results

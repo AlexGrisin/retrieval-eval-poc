@@ -32,8 +32,9 @@ Human-authored authoritative sources — do not restate them here, read them:
   reconciliation, security, and production operation.
 - Covers the **read path** only: consumer → retrieval skill → knowledge server →
   assembled context → generated answer.
-- Proof of concept: proves the instrument works against a controlled fake backend. It
-  does **not** yet measure production retrieval quality.
+- Proof of concept: exercises the deployed `/okf-knowledge` skill against the running
+  Knowledge Server and its ingested data. It is still not a production release-quality
+  or monitoring programme.
 
 ## Stakeholders and what each one wants from a run
 
@@ -49,8 +50,10 @@ Human-authored authoritative sources — do not restate them here, read them:
 
 - **Case** — a reviewed, version-controlled evaluation input: a question, caller scope,
   and the expectations that activate checks. The answer key; reviewed like knowledge.
-- **Corpus** — the controlled, frozen knowledge fixture a run is evaluated against.
-  Keeps failures attributable to code or contract change, not to shifting live data.
+- **Corpus identity** — the per-domain source-registry hash captured before and after
+  a run. A changed identity makes the run non-comparable.
+- **Trial** — one independent Claude execution of a case. `--trials N` produces N
+  observations rather than retrying a failure until it passes.
 - **Note** — one atomic unit of knowledge, versioned; retrieval returns notes ranked.
 - **Relevance label / grade** — a human judgment per question and note: `2` directly
   answers, `1` materially useful but insufficient, `0` not relevant.
@@ -91,8 +94,7 @@ Human-authored authoritative sources — do not restate them here, read them:
 - Write path (source change → authoring → ingestion → index).
 - Production monitoring, alerting, scheduled execution, release gating policy —
   separate deliveries per [../TASKS.md](../TASKS.md).
-- Proving production retrieval quality — blocked on the real knowledge server and
-  approved contracts.
+- Establishing production release quality, monitoring, and approved contracts.
 
 ## Known-provisional areas
 

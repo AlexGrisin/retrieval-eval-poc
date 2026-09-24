@@ -1,5 +1,9 @@
 # ARCHITECTURE
 
+> **Status: historical Rosetta inventory.** It describes the retired surrogate-based
+> layout and is retained for reference only. The current live deployed-skill flow is
+> documented in [../ARCHITECTURE.md](../ARCHITECTURE.md) and [../README.md](../README.md).
+
 **Purpose**: how this workspace is built — module boundaries, dependency direction,
 structural invariants, testing architecture, build and run surface, extension seams.
 **Content**: structure and rules an agent must respect when changing code.
