@@ -60,32 +60,29 @@ server URL from the selected plugin's `.mcp.json`.
 From this repository:
 
 ```bash
-env -u ANTHROPIC_API_KEY .venv/bin/pytest -q
+make eval
 ```
 
-That selects seven offline framework self-tests and eight live deployed-skill cases.
-The environment prefix is only needed when a stale `ANTHROPIC_API_KEY` would override
-an authenticated Claude login.
+That runs all live deployed-skill cases. It removes a stale `ANTHROPIC_API_KEY` so an
+interactive Claude login remains usable. Run `make framework` for fast offline
+self-tests, or `make help` to list the available shortcuts.
 
 Run one live case while iterating:
 
 ```bash
-env -u ANTHROPIC_API_KEY .venv/bin/pytest \
-  -m agent_target \
-  -k case-001-sdp-ownership \
-  -vv -s
+make eval CASE=case-001-sdp-ownership
 ```
 
 Run only the fast evaluator self-tests; these do not need Claude or the server:
 
 ```bash
-.venv/bin/pytest -m framework -q
+make framework
 ```
 
 List tests without running them:
 
 ```bash
-.venv/bin/pytest --collect-only -q
+make list
 ```
 
 Live cases run sequentially and normally take several minutes. Parallel workers are
