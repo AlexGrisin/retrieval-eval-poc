@@ -127,12 +127,13 @@ The evaluator's plugin and MCP configuration are runtime inputs. Configure
 `--plugin-dir` and `--mcp-config`; command-line values win. Do not document a
 developer's local workspace path in tracked files.
 
-Live case entity keys, repository names, and queries intentionally match the ingested
-Knowledge Server corpus. Do not replace organisation or repository identifiers in a
-live case alone: the required tool calls and entity assertions would no longer match
-the server. A shareable anonymized evaluation requires a consistently anonymized
-corpus and case set—for example, the same alias must replace an organisation in graph
-entities, source references, expected answers, and case tool arguments.
+Tracked cases use public aliases such as `ExampleCorp` and `example-scoreboard`.
+For live evaluation, define their real corpus values with `EVAL_ALIAS_*` variables in
+the ignored `.env`; the harness expands them only for the request and deterministic
+checks, then redacts captured evidence, Allure attachments, and judge input back to
+the public aliases. Do not commit the private values. A shareable evaluation still
+needs an anonymized server corpus if the server's own source-registry snapshot is to
+be shared.
 
 Run artifacts contain captured tool results and final answers. Treat `run-results/`
 and Allure attachments as sensitive when they include real corpus identifiers. Publish

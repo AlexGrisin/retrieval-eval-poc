@@ -12,7 +12,7 @@ expect_tool_calls:
       args:
         domain: sdp
         label: Commit
-        key: github.com/SyscoCorporation/sysco-internal-developer-portal/packages/app@de715cc45970
+        key: github.com/ExampleCorp/example-developer-portal/packages/app@de715cc45970
         direction: outgoing
         depth_at_least: 2
     - tool: kb_fetch
@@ -26,14 +26,14 @@ expect_tool_calls:
 expect:
   required_entities:
     - Story/DE-1141
-    - PullRequest/github.com/SyscoCorporation/sysco-internal-developer-portal/packages/app#391
+    - PullRequest/github.com/ExampleCorp/example-developer-portal/packages/app#391
 
 answer_evaluation:
   expect:
     status: answered
     required_citations:
       - {label: Story, key: DE-1141}
-      - {label: PullRequest, key: "github.com/SyscoCorporation/sysco-internal-developer-portal/packages/app#391"}
+      - {label: PullRequest, key: "github.com/ExampleCorp/example-developer-portal/packages/app#391"}
     required_phrases: [context caching, homepage data, DE-1141, Jira, not connected]
     forbidden_phrases: [React.lazy, code splitting, custom plugin routes]
     requires_footer_format: true

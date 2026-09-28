@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 from urllib.error import URLError
@@ -21,6 +22,7 @@ from harness.agent.claude_target import (
     ClaudeTargetConfig,
     evaluate_agent_case,
 )
+from harness.aliases import AliasConfigurationError, AliasResolver
 from harness.run_artifacts import (
     RunArtifacts,
     file_hash,
@@ -48,6 +50,62 @@ def _runtime_path(request, option: str, environment: str) -> Path | None:
         None,
     )
     return Path(value).expanduser().resolve() if value else None
+
+
+def _redact_outcome(outcome: AgentCaseOutcome, aliases: AliasResolver) -> AgentCaseOutcome:
+    """Keep local corpus identifiers out of evidence, diagnostics, and judges."""
+    evidence = outcome.evidence
+    redacted_evidence = replace(
+        evidence,
+        tool_calls=[
+            replace(
+                call,
+                args=aliases.redact(call.args),
+                result=aliases.redact(call.result),
+            )
+            for call in evidence.tool_calls
+        ],
+        final_answer=aliases.redact(evidence.final_answer),
+        raw_events=aliases.redact(evidence.raw_events),
+        stderr=aliases.redact(evidence.stderr),
+        usage=aliases.redact(evidence.usage),
+    )
+    response = outcome.agent_run.response
+    if response is not None:
+        response = response.model_copy(
+            update={
+                "answer": aliases.redact(response.answer),
+                "citations": [
+                    citation.model_copy(update={"key": aliases.redact(citation.key)})
+                    for citation in response.citations
+                ],
+            }
+        )
+    redacted_run = outcome.agent_run.model_copy(
+        update={
+            "question": aliases.redact(outcome.agent_run.question),
+            "retrieved_context": aliases.redact(outcome.agent_run.retrieved_context),
+            "response": response,
+            "retrieval_result": aliases.redact(outcome.agent_run.retrieval_result),
+            "checks": [
+                check.model_copy(
+                    update={
+                        "detail": aliases.redact(check.detail),
+                        "source": aliases.redact(check.source),
+                    }
+                )
+                for check in outcome.agent_run.checks
+            ],
+            "reference_answer": aliases.redact(outcome.agent_run.reference_answer),
+        }
+    )
+    return replace(
+        outcome,
+        evidence=redacted_evidence,
+        retrieval_result=aliases.redact(outcome.retrieval_result),
+        agent_run=redacted_run,
+        failures=aliases.redact(outcome.failures),
+    )
 
 
 def pytest_addoption(parser):
@@ -194,6 +252,11 @@ def agent_target(request) -> ClaudeCodeSkillTarget:
 
 
 @pytest.fixture(scope="session")
+def alias_resolver() -> AliasResolver:
+    return AliasResolver.from_local_environment(LOCAL_ENV_VALUES)
+
+
+@pytest.fixture(scope="session")
 def knowledge_server_ready(agent_target: ClaudeCodeSkillTarget) -> str:
     """Fail before model execution when the configured real server is unavailable."""
     try:
@@ -230,11 +293,18 @@ def _domains_under_test() -> list[str]:
 
 
 @pytest.fixture(scope="session")
-def run_artifacts(request, agent_target, knowledge_server_ready: str) -> RunArtifacts:
+def run_artifacts(
+    request,
+    agent_target,
+    alias_resolver: AliasResolver,
+    knowledge_server_ready: str,
+) -> RunArtifacts:
     """Persist exactly which code, model settings, cases, and server data were used."""
     domains = _domains_under_test()
     try:
-        server_before = server_snapshot(knowledge_server_ready, domains)
+        server_before = alias_resolver.redact(
+            server_snapshot(knowledge_server_ready, domains)
+        )
     except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
         raise pytest.UsageError(
             "could not capture the Knowledge Server source registry; "
@@ -247,7 +317,6 @@ def run_artifacts(request, agent_target, knowledge_server_ready: str) -> RunArti
         "cases": {case["id"]: file_hash(ROOT / "cases" / f"{case['id']}.yaml") for case in load_cases()},
         "evaluator": git_metadata(ROOT),
         "plugin": {
-            "directory": str(agent_target.config.plugin_dir),
             "git": git_metadata(agent_target.config.plugin_dir),
             "tree_sha256": tree_hash(agent_target.config.plugin_dir),
             "mcp_config_sha256": file_hash(agent_target.config.mcp_config),
@@ -270,7 +339,9 @@ def run_artifacts(request, agent_target, knowledge_server_ready: str) -> RunArti
 
     def finish() -> None:
         try:
-            artifacts.finish(server_snapshot(knowledge_server_ready, domains))
+            artifacts.finish(
+                alias_resolver.redact(server_snapshot(knowledge_server_ready, domains))
+            )
         except Exception as exc:  # Preserve the original test outcome and explain comparability.
             artifacts.finish_with_server_error(f"{type(exc).__name__}: {exc}")
 
@@ -289,18 +360,29 @@ def _claude_version(binary: str) -> str | None:
 
 
 class _AgentCaseResults:
-    def __init__(self, target: ClaudeCodeSkillTarget, artifacts: RunArtifacts) -> None:
+    def __init__(
+        self,
+        target: ClaudeCodeSkillTarget,
+        artifacts: RunArtifacts,
+        aliases: AliasResolver,
+    ) -> None:
         self._target = target
         self._cases = {case["id"]: case for case in load_cases()}
         self._artifacts = artifacts
+        self._aliases = aliases
         self._cache: dict[tuple[str, int], AgentCaseOutcome] = {}
 
     def __getitem__(self, key: tuple[str, int]) -> AgentCaseOutcome:
         case_id, trial = key
         if key not in self._cache:
             case = self._cases[case_id]
-            outcome = evaluate_agent_case(
-                case, self._target.execute(case)
+            try:
+                runtime_case = self._aliases.expand_case(case)
+            except AliasConfigurationError as exc:
+                raise pytest.UsageError(str(exc)) from exc
+            outcome = _redact_outcome(
+                evaluate_agent_case(runtime_case, self._target.execute(runtime_case)),
+                self._aliases,
             )
             self._artifacts.record_outcome(case_id, trial, outcome)
             self._cache[key] = outcome
@@ -310,7 +392,12 @@ class _AgentCaseResults:
 @pytest.fixture(scope="session")
 def agent_case_results(
     agent_target: ClaudeCodeSkillTarget,
+    alias_resolver: AliasResolver,
     knowledge_server_ready: str,
     run_artifacts: RunArtifacts,
 ) -> _AgentCaseResults:
-    return _AgentCaseResults(agent_target, run_artifacts)
+    return _AgentCaseResults(
+        agent_target,
+        run_artifacts,
+        alias_resolver,
+    )

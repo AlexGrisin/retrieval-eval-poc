@@ -2,7 +2,7 @@ title: Deployed skill reports tests without inventing line coverage
 why: >-
   The corpus records test files but not measured line coverage. A useful answer must
   return the suite and make that limitation explicit.
-query: what test coverage exists for the syscoscore plugin?
+query: what test coverage exists for the example-scoreboard plugin?
 domain: sdp
 persona: platform-engineer
 
@@ -12,7 +12,7 @@ expect_tool_calls:
       args:
         domain: sdp
         label: Feature
-        key: syscoscore
+        key: example-scoreboard
         relationships_contains: [COVERS]
         direction: incoming
   forbidden_tools: [Bash, Read, Write, Edit, Grep, Glob, WebFetch, WebSearch]
@@ -20,19 +20,19 @@ expect_tool_calls:
 
 expect:
   required_entities:
-    - Feature/syscoscore
-    - TestSuite/github.com/SyscoCorporation/sysco-internal-developer-portal/plugins/syscoscore:testing/plugin.test.ts
+    - Feature/example-scoreboard
+    - TestSuite/github.com/ExampleCorp/example-developer-portal/plugins/example-scoreboard:testing/plugin.test.ts
 
 answer_evaluation:
   expect:
     status: answered
     required_citations:
-      - {label: Feature, key: syscoscore}
-      - {label: TestSuite, key: "github.com/SyscoCorporation/sysco-internal-developer-portal/plugins/syscoscore:testing/plugin.test.ts"}
+      - {label: Feature, key: example-scoreboard}
+      - {label: TestSuite, key: "github.com/ExampleCorp/example-developer-portal/plugins/example-scoreboard:testing/plugin.test.ts"}
     required_phrases: [plugin.test.ts, line coverage is not measured]
     forbidden_phrases: [100% line coverage, full line coverage]
     requires_footer_format: true
   rubrics: [faithfulness, relevancy, answer_correctness]
   reference_answer: >-
-    The syscoscore feature has testing/plugin.test.ts. The corpus records that the
+    The example-scoreboard feature has testing/plugin.test.ts. The corpus records that the
     test file exists but does not measure line coverage.

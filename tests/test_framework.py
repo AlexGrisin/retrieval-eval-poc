@@ -8,6 +8,7 @@ from types import SimpleNamespace
 import pytest
 
 from harness.agent.models import AgentCheckResult, AgentResponse, AgentRun, Citation
+from harness.aliases import AliasConfigurationError, AliasResolver
 from harness.agent.claude_target import (
     CapturedExecution,
     CapturedToolCall,
@@ -331,6 +332,35 @@ def test_forbidden_phrases_are_checked_case_insensitively() -> None:
     detail = check_forbidden_phrases(response, ["rotates weekly", "rotates daily"])
 
     assert detail == "answer contains forbidden phrase(s): ['rotates weekly']"
+
+
+def test_public_case_aliases_expand_for_live_validation_and_redact_evidence() -> None:
+    aliases = AliasResolver(
+        {
+            "ExampleCorp": "private-corporation",
+            "example-developer-portal": "private-portal",
+            "example-scoreboard": "private-scoreboard",
+        }
+    )
+    public_case = {
+        "query": "does ExampleCorp/example-developer-portal use example-scoreboard?",
+        "expect": {"required_entities": ["Feature/example-scoreboard"]},
+    }
+
+    runtime_case = aliases.expand_case(public_case)
+
+    assert runtime_case == {
+        "query": "does private-corporation/private-portal use private-scoreboard?",
+        "expect": {"required_entities": ["Feature/private-scoreboard"]},
+    }
+    assert aliases.redact(runtime_case) == public_case
+    with pytest.raises(AliasConfigurationError, match="EVAL_ALIAS_EXAMPLE_FEATURE"):
+        AliasResolver(
+            {
+                "ExampleCorp": "private-corporation",
+                "example-developer-portal": "private-portal",
+            }
+        ).expand_case(public_case)
 
 
 def test_run_artifacts_records_trials_and_marks_changed_corpus_non_comparable(tmp_path) -> None:
