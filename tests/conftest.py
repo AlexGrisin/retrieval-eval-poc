@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
@@ -12,6 +13,7 @@ from urllib.request import urlopen
 
 import allure
 import pytest
+from dotenv import dotenv_values
 
 from harness.agent.claude_target import (
     AgentCaseOutcome,
@@ -27,6 +29,25 @@ from harness.run_artifacts import (
     tree_hash,
 )
 from tests.support import ROOT, load_cases
+
+
+LOCAL_ENV_VALUES = dotenv_values(ROOT / ".env")
+
+
+def _runtime_path(request, option: str, environment: str) -> Path | None:
+    """Resolve a portable path with CLI, local .env, then process-env precedence."""
+    cli_value = request.config.getoption(option)
+    local_value = LOCAL_ENV_VALUES.get(environment)
+    environment_value = os.getenv(environment)
+    value = next(
+        (
+            candidate
+            for candidate in (cli_value, local_value, environment_value)
+            if isinstance(candidate, str) and candidate.strip()
+        ),
+        None,
+    )
+    return Path(value).expanduser().resolve() if value else None
 
 
 def pytest_addoption(parser):
@@ -46,8 +67,18 @@ def pytest_addoption(parser):
     parser.addoption("--agent-model", action="store", default=None)
     parser.addoption("--agent-effort", action="store", default=None)
     parser.addoption("--agent-timeout", action="store", type=int, default=300)
-    parser.addoption("--plugin-dir", action="store", default=None)
-    parser.addoption("--mcp-config", action="store", default=None)
+    parser.addoption(
+        "--plugin-dir",
+        action="store",
+        default=None,
+        help="skill plugin directory (or EVAL_PLUGIN_DIR in .env/environment)",
+    )
+    parser.addoption(
+        "--mcp-config",
+        action="store",
+        default=None,
+        help="MCP config file (or EVAL_MCP_CONFIG in .env/environment)",
+    )
     parser.addoption(
         "--trials",
         action="store",
@@ -136,17 +167,15 @@ def _allure_case_hierarchy(request):
 
 @pytest.fixture(scope="session")
 def agent_target(request) -> ClaudeCodeSkillTarget:
-    workspace = ROOT.parent / "sysco-context-layer"
-    default_plugin = (
-        workspace
-        / "sysco-context-layer-marketplace"
-        / "plugins"
-        / "sdp-context"
-    )
-    plugin_dir = Path(request.config.getoption("--plugin-dir") or default_plugin)
-    mcp_config = Path(
-        request.config.getoption("--mcp-config") or plugin_dir / ".mcp.json"
-    )
+    plugin_dir = _runtime_path(request, "--plugin-dir", "EVAL_PLUGIN_DIR")
+    if plugin_dir is None:
+        raise pytest.UsageError(
+            "plugin directory is required; pass --plugin-dir or set "
+            "EVAL_PLUGIN_DIR in .env or the environment"
+        )
+    mcp_config = _runtime_path(request, "--mcp-config", "EVAL_MCP_CONFIG")
+    if mcp_config is None:
+        mcp_config = plugin_dir / ".mcp.json"
     if not plugin_dir.is_dir():
         raise pytest.UsageError(f"plugin directory does not exist: {plugin_dir}")
     if not mcp_config.is_file():
@@ -156,7 +185,7 @@ def agent_target(request) -> ClaudeCodeSkillTarget:
             claude_bin=request.config.getoption("--claude-bin"),
             plugin_dir=plugin_dir,
             mcp_config=mcp_config,
-            cwd=workspace,
+            cwd=ROOT,
             timeout_seconds=request.config.getoption("--agent-timeout"),
             model=request.config.getoption("--agent-model"),
             effort=request.config.getoption("--agent-effort"),
@@ -203,7 +232,6 @@ def _domains_under_test() -> list[str]:
 @pytest.fixture(scope="session")
 def run_artifacts(request, agent_target, knowledge_server_ready: str) -> RunArtifacts:
     """Persist exactly which code, model settings, cases, and server data were used."""
-    workspace = agent_target.config.cwd
     domains = _domains_under_test()
     try:
         server_before = server_snapshot(knowledge_server_ready, domains)
@@ -224,7 +252,6 @@ def run_artifacts(request, agent_target, knowledge_server_ready: str) -> RunArti
             "tree_sha256": tree_hash(agent_target.config.plugin_dir),
             "mcp_config_sha256": file_hash(agent_target.config.mcp_config),
         },
-        "knowledge_server": git_metadata(workspace / "sysco-context-layer-knowledge-server"),
         "claude": {
             "binary": agent_target.config.claude_bin,
             "version": _claude_version(agent_target.config.claude_bin),

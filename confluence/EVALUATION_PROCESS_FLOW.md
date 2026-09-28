@@ -227,13 +227,13 @@ For each case, the process reports:
 
 Each report records a versioned run manifest that separates controlled compatibility
 inputs, the target under evaluation, and traceability-only run metadata. The deployed
-skill implementation records case hashes, evaluator/plugin/server revisions, model
-settings, and per-domain source-registry hashes before and after a run. A changed
-registry marks the run non-comparable. Comparisons reject changed evaluation data,
-contracts, measurement code, dependencies, configuration, cases, or metrics before
-calculating deltas. A target version may differ only when the exact field is declared
-as the change under test. Approved release thresholds and the first real baseline
-remain **TBD**.
+skill implementation records case hashes, evaluator and plugin revisions, model
+settings, and per-domain source-registry snapshot hashes before and after a run. A
+changed registry marks the run non-comparable. Comparisons reject changed evaluation
+data, contracts, measurement code, dependencies, configuration, cases, or metrics
+before calculating deltas. A target version may differ only when the exact field is
+declared as the change under test. Approved release thresholds and the first real
+baseline remain **TBD**.
 
 ### Decision and operating rules
 

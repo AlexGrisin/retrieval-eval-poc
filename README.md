@@ -46,7 +46,7 @@ answer.
 Start and verify the real server:
 
 ```bash
-cd /Users/agrisin/projects/sysco/ai-sdlc/context-engineering/sysco-context-layer
+cd <context-layer-workspace>
 make pg-up
 make server-start
 curl -sf http://127.0.0.1:8000/healthz
@@ -94,8 +94,15 @@ rejected for live cases so one case/trial is never executed more than once. Use
 
 ## Reproducibility options
 
-The evaluator defaults to the plugin in the sibling workspace. Override inputs when
-needed:
+The deployed skill and MCP configuration are runtime inputs; the evaluator has no
+default plugin workspace layout. Set the paths once in the ignored local `.env`:
+
+```dotenv
+EVAL_PLUGIN_DIR=/path/to/plugins/sdp-context
+EVAL_MCP_CONFIG=/path/to/plugins/sdp-context/.mcp.json
+```
+
+Then run normally. Command-line values take precedence when needed:
 
 ```bash
 env -u ANTHROPIC_API_KEY .venv/bin/pytest \
@@ -112,6 +119,24 @@ one trial failed.
 ```bash
 env -u ANTHROPIC_API_KEY .venv/bin/pytest -m agent_target --trials 3
 ```
+
+## Portability and sensitive identifiers
+
+The evaluator's plugin and MCP configuration are runtime inputs. Configure
+`EVAL_PLUGIN_DIR` and `EVAL_MCP_CONFIG` in the ignored `.env`, or pass
+`--plugin-dir` and `--mcp-config`; command-line values win. Do not document a
+developer's local workspace path in tracked files.
+
+Live case entity keys, repository names, and queries intentionally match the ingested
+Knowledge Server corpus. Do not replace organisation or repository identifiers in a
+live case alone: the required tool calls and entity assertions would no longer match
+the server. A shareable anonymized evaluation requires a consistently anonymized
+corpus and case set—for example, the same alias must replace an organisation in graph
+entities, source references, expected answers, and case tool arguments.
+
+Run artifacts contain captured tool results and final answers. Treat `run-results/`
+and Allure attachments as sensitive when they include real corpus identifiers. Publish
+only redacted artifacts, or use an anonymized corpus for externally shared results.
 
 ## Optional semantic judges
 
@@ -159,6 +184,6 @@ allure serve allure-results
 Stop the background server when finished:
 
 ```bash
-cd /Users/agrisin/projects/sysco/ai-sdlc/context-engineering/sysco-context-layer
+cd <context-layer-workspace>
 make server-stop
 ```

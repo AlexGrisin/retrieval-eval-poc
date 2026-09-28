@@ -67,6 +67,11 @@ Entity identities use `Label/key`, for example `Story/DE-1141`. The evaluator wa
 the actual MCP results from every captured call. `required_entities` must be present;
 `must_not_return` must be absent.
 
+Entity keys, source references, and repository names in a live case must match the
+ingested corpus exactly. To anonymize cases for sharing, anonymize the corpus and all
+linked case fields with the same alias mapping; masking only the YAML case breaks the
+live evaluation.
+
 ## Answer checks
 
 `status` is `answered` or `insufficient_context`. An answer is classified as

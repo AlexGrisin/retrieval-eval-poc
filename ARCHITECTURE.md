@@ -17,6 +17,15 @@ There is no in-repository retrieval implementation. The plugin directory and MCP
 configuration are runtime inputs, so the evidence comes from the same artifacts used
 by the application.
 
+## Portability and identifier handling
+
+Framework configuration may use generic paths and runtime overrides. Live case data
+cannot be independently masked because its entity keys and repository identifiers are
+looked up against the running corpus. To share an anonymized evaluation, create a
+matching anonymized corpus and case set with one consistent alias mapping. Captured
+tool traces, answers, Allure attachments, and `run-results/` retain real identifiers
+unless a redaction layer is applied before publication.
+
 ## One execution per case/trial
 
 `tests/conftest.py` owns a session cache keyed by `(case ID, trial number)`. The first
@@ -37,11 +46,11 @@ N independent executions available for a case.
 
 Every live invocation creates `run-results/<run-id>/manifest.json` and one immutable
 `<case-id>/trial-N.json` evidence record per attempted case/trial. The manifest records
-case hashes, evaluator/plugin/server revisions, plugin content hash, Claude and judge
-settings, and a per-domain Knowledge Server source-registry hash before and after the
-run. A changed registry sets `comparable: false`; that run must not be used for a
-regression comparison. `trial_summary` reports each selected case as, for example,
-`2/3`.
+case hashes, evaluator and plugin revisions, plugin content hash, Claude and judge
+settings, and a per-domain Knowledge Server source-registry snapshot hash before and
+after the run. A changed registry sets `comparable: false`; that run must not be used
+for a regression comparison. `trial_summary` reports each selected case as, for
+example, `2/3`.
 
 ## Test levels
 

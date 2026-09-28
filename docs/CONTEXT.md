@@ -52,6 +52,8 @@ Human-authored authoritative sources — do not restate them here, read them:
   and the expectations that activate checks. The answer key; reviewed like knowledge.
 - **Corpus identity** — the per-domain source-registry hash captured before and after
   a run. A changed identity makes the run non-comparable.
+- **Anonymized evaluation** — a corpus and case set transformed with the same alias
+  mapping. Masking identifiers only in a live case invalidates its graph lookups.
 - **Trial** — one independent Claude execution of a case. `--trials N` produces N
   observations rather than retrying a failure until it passes.
 - **Note** — one atomic unit of knowledge, versioned; retrieval returns notes ranked.
@@ -85,6 +87,8 @@ Human-authored authoritative sources — do not restate them here, read them:
 - Incompatible runs are rejected before any regression is computed — no
   intersection-only comparison, no quiet waiver.
 - A flaky case is the finding. There is no retry-until-green.
+- Captured traces and answers retain corpus identifiers; externally shared artifacts
+  must be redacted or generated from an anonymized corpus.
 - Production incidents and observed failures become new cases.
 
 ## Out of scope
